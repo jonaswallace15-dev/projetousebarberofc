@@ -6,7 +6,7 @@ export default auth((request) => {
   const session = request.auth;
   const pathname = nextUrl.pathname;
 
-  const publicPaths = ['/login', '/book', '/api'];
+  const publicPaths = ['/login', '/book', '/api', '/agendamento'];
   const isPublic = publicPaths.some(p => pathname.startsWith(p)) || pathname === '/';
 
   if (!isPublic && !session) {
