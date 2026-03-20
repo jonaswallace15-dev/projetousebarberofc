@@ -1,0 +1,229 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("Proprietário")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  barbers             Barber[]
+  clients             Client[]
+  services            Service[]
+  appointments        Appointment[]
+  transactions        FinanceTransaction[]
+  plans               SubscriptionPlan[]
+  products            Product[]
+  config              Config?
+  wallets             Wallet[]
+  pushSubscriptions   PushSubscription[]
+  clientSubscriptions ClientSubscription[]
+
+  @@map("users")
+}
+
+model Barber {
+  id             String  @id @default(cuid())
+  userId         String  @map("user_id")
+  name           String
+  role           String  @default("Barbeiro")
+  commission     Float   @default(50)
+  commissionType String  @default("percentage") @map("commission_type")
+  avatar         String?
+  services       Json?
+  schedule       Json?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallets Wallet[]
+
+  @@map("barbeiros")
+}
+
+model Client {
+  id         String  @id @default(cuid())
+  userId     String  @map("user_id")
+  name       String
+  phone      String
+  email      String?
+  instagram  String?
+  birthDate  String? @map("birth_date")
+  cpfCnpj    String? @map("cpf_cnpj")
+  address    String?
+  lastVisit  String  @default("") @map("last_visit")
+  totalSpent Float   @default(0) @map("total_spent")
+  frequency  Int     @default(0)
+  tag        String  @default("Novo")
+  notes      String?
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptions ClientSubscription[]
+
+  @@map("clientes")
+}
+
+model Service {
+  id       String  @id @default(cuid())
+  userId   String  @map("user_id")
+  name     String
+  price    Float
+  duration Int
+  active   Boolean @default(true)
+  image    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("servicos")
+}
+
+model Appointment {
+  id          String @id @default(cuid())
+  userId      String @map("user_id")
+  clientId    String @map("client_id")
+  clientName  String @map("client_name")
+  barberId    String @map("barber_id")
+  barberName  String @map("barber_name")
+  serviceId   String @map("service_id")
+  serviceName String @map("service_name")
+  time        String
+  date        String
+  status      String @default("Confirmado")
+  price       Float
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("agendamentos")
+}
+
+model FinanceTransaction {
+  id            String  @id @default(cuid())
+  userId        String  @map("user_id")
+  type          String
+  category      String
+  amount        Float
+  date          String
+  method        String
+  description   String
+  appointmentId String? @map("appointment_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("transacoes_financeiras")
+}
+
+model SubscriptionPlan {
+  id          String @id @default(cuid())
+  userId      String @map("user_id")
+  name        String
+  price       Float
+  benefits    Json   @default("[]")
+  activeUsers Int    @default(0) @map("active_users")
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptions ClientSubscription[]
+
+  @@map("planos_assinatura")
+}
+
+model Product {
+  id     String  @id @default(cuid())
+  userId String  @map("user_id")
+  name   String
+  price  Float
+  stock  Int     @default(0)
+  image  String?
+  active Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("produtos")
+}
+
+model Config {
+  id     String @id @default(cuid())
+  userId String @unique @map("user_id")
+  slug   String @unique
+  data   Json   @default("{}")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("configuracoes")
+}
+
+model Wallet {
+  id       String  @id @default(cuid())
+  userId   String  @map("user_id")
+  barberId String? @map("barber_id")
+  type     String
+  balance  Float   @default(0)
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barber       Barber?             @relation(fields: [barberId], references: [id])
+  transactions WalletTransaction[]
+  withdrawals  Withdrawal[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  walletId    String   @map("wallet_id")
+  amount      Float
+  type        String
+  method      String?
+  description String
+  category    String
+  relatedId   String?  @map("related_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@map("wallet_transactions")
+}
+
+model PushSubscription {
+  id       String @id @default(cuid())
+  userId   String @map("user_id")
+  endpoint String @unique
+  p256dh   String
+  auth     String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_subscriptions")
+}
+
+model ClientSubscription {
+  id       String @id @default(cuid())
+  userId   String @map("user_id")
+  clientId String @map("client_id")
+  planId   String @map("plan_id")
+  data     Json?
+
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client           @relation(fields: [clientId], references: [id])
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@map("assinaturas_clientes")
+}
+
+model Withdrawal {
+  id          String    @id @default(cuid())
+  walletId    String    @map("wallet_id")
+  status      String    @default("Pendente")
+  notes       String?
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@map("withdrawals")
+}
