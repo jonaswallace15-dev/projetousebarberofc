@@ -11,10 +11,16 @@ export async function GET(request: NextRequest) {
   try {
     const config = await prisma.config.findFirst({
       where: { slug },
-      select: { userId: true },
+      select: { userId: true, data: true, slug: true },
     });
 
-    return NextResponse.json({ user_id: config?.userId ?? null });
+    if (!config) return NextResponse.json({ user_id: null });
+
+    return NextResponse.json({
+      user_id: config.userId,
+      slug: config.slug,
+      ...(config.data as object),
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
