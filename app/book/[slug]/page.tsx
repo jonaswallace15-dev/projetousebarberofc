@@ -31,7 +31,7 @@ export default function BookingPage({ params }: PageProps) {
     serviceId: '',
     barberId: '',
     productId: '',
-    date: new Date().toISOString().split('T')[0],
+    date: (() => { const d = new Date(); return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-'); })(),
     time: '',
     clientName: '',
     clientPhone: '',
@@ -49,7 +49,7 @@ export default function BookingPage({ params }: PageProps) {
 
         const [config, svcs, brbs, prods, appts] = await Promise.all([
           fetch(`/api/config/slug?slug=${encodeURIComponent(slug)}`).then(r => r.json()),
-          supabaseService.getServices(),
+          fetch(`/api/services?user_id=${uid}`).then(r => r.json()),
           supabaseService.getBarbers(uid),
           supabaseService.getProducts(uid),
           supabaseService.getAppointments(uid),
@@ -96,9 +96,9 @@ export default function BookingPage({ params }: PageProps) {
     const selectedService = services.find(s => s.id === bookingData.serviceId);
     const duration = selectedService?.duration || 30;
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const isToday = bookingData.date === todayStr;
     const now = new Date();
+    const todayStr = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+    const isToday = bookingData.date === todayStr;
 
     let current = new Date(bookingData.date + 'T00:00:00');
     current.setHours(startH, startM, 0, 0);
@@ -434,7 +434,7 @@ export default function BookingPage({ params }: PageProps) {
                 <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-brand-accent" size={20} />
                 <input
                   type="date"
-                  min={new Date().toISOString().split('T')[0]}
+                  min={(() => { const d = new Date(); return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-'); })()}
                   value={bookingData.date}
                   onChange={e => setBookingData(d => ({ ...d, date: e.target.value, time: '' }))}
                   className="w-full rounded-[2rem] pl-16 pr-8 py-5 text-white outline-none font-mono font-black transition-all"
