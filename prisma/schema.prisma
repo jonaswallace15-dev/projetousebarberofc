@@ -119,12 +119,13 @@ model FinanceTransaction {
 }
 
 model SubscriptionPlan {
-  id          String @id @default(cuid())
-  userId      String @map("user_id")
-  name        String
-  price       Float
-  benefits    Json   @default("[]")
-  activeUsers Int    @default(0) @map("active_users")
+  id            String  @id @default(cuid())
+  userId        String  @map("user_id")
+  name          String
+  price         Float
+  benefits      Json    @default("[]")
+  activeUsers   Int     @default(0) @map("active_users")
+  stripePriceId String? @map("stripe_price_id")
 
   user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscriptions ClientSubscription[]
@@ -202,11 +203,14 @@ model PushSubscription {
 }
 
 model ClientSubscription {
-  id       String @id @default(cuid())
-  userId   String @map("user_id")
-  clientId String @map("client_id")
-  planId   String @map("plan_id")
-  data     Json?
+  id                   String  @id @default(cuid())
+  userId               String  @map("user_id")
+  clientId             String  @map("client_id")
+  planId               String  @map("plan_id")
+  data                 Json?
+  status               String  @default("active")
+  stripeSubscriptionId String? @map("stripe_subscription_id")
+  stripeCustomerId     String? @map("stripe_customer_id")
 
   user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   client Client           @relation(fields: [clientId], references: [id])
@@ -218,6 +222,9 @@ model ClientSubscription {
 model Withdrawal {
   id          String    @id @default(cuid())
   walletId    String    @map("wallet_id")
+  userId      String    @map("user_id")
+  amount      Float
+  pixKey      String    @map("pix_key")
   status      String    @default("Pendente")
   notes       String?
   processedAt DateTime? @map("processed_at")

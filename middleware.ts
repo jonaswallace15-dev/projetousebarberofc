@@ -6,7 +6,7 @@ export default auth((request) => {
   const session = request.auth;
   const pathname = nextUrl.pathname;
 
-  const publicPaths = ['/login', '/book', '/api', '/agendamento'];
+  const publicPaths = ['/login', '/book', '/api', '/agendamento', '/plano'];
   const isPublic = publicPaths.some(p => pathname.startsWith(p)) || pathname === '/';
 
   if (!isPublic && !session) {
@@ -17,7 +17,8 @@ export default auth((request) => {
 
   if (pathname === '/login' && session) {
     const url = nextUrl.clone();
-    url.pathname = '/dashboard';
+    const role = (session.user as any)?.role;
+    url.pathname = role === 'Super Admin' ? '/admin' : '/dashboard';
     return NextResponse.redirect(url);
   }
 

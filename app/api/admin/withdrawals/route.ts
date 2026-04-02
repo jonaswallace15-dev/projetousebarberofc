@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!session?.user || (session.user as any).role !== 'Super Admin')
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const withdrawals = await prisma.withdrawal.findMany({
@@ -26,7 +27,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!session?.user || (session.user as any).role !== 'Super Admin')
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     const { id, action, notes } = await request.json();

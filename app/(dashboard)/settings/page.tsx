@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Instagram, ExternalLink, Check, ChevronRight } from 'lucide-react';
 import { supabaseService } from '@/services/supabaseService';
 import { useAuth } from '@/components/AuthProvider';
+import { useUI } from '@/components/UIProvider';
 
 interface DaySchedule {
   open: string;
@@ -25,6 +26,7 @@ const defaultWorkingHours: Record<string, DaySchedule> = {
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { toast } = useUI();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -152,9 +154,9 @@ export default function SettingsPage() {
         working_hours: config.workingHours,
       });
       setConfig(prev => ({ ...prev, slug: cleanSlug }));
-      alert('Configurações salvas com sucesso!');
+      toast('Configurações salvas com sucesso!', 'success');
     } catch (err: any) {
-      alert('Erro ao salvar: ' + err.message);
+      toast('Erro ao salvar: ' + err.message, 'error');
     } finally { setSaving(false); }
   };
 
@@ -174,9 +176,19 @@ export default function SettingsPage() {
             <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse shadow-[0_0_10px_#0070FF]" />
             <span className="text-[10px] font-mono uppercase tracking-widest text-brand-accent font-bold">System Configuration Active</span>
           </div>
-          <h1 className="text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
-            Ajustes<span className="text-brand-accent">.</span>
-          </h1>
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
+              Ajustes<span className="text-brand-accent">.</span>
+            </h1>
+            <button
+              onClick={handleCopy}
+              className="flex items-center justify-center w-11 h-11 rounded-2xl text-brand-accent transition-all active:scale-90 hover:bg-brand-accent/10 shrink-0"
+              style={{ border: '1px solid var(--card-border)', background: 'var(--input-bg)' }}
+              title="Copiar link público"
+            >
+              {copied ? <Check size={18} className="text-brand-success" /> : <ExternalLink size={18} />}
+            </button>
+          </div>
           <p className="text-brand-muted mt-4 font-medium text-lg leading-relaxed">
             Personalize a experiência tecnológica da sua barbearia.
           </p>
@@ -211,18 +223,6 @@ export default function SettingsPage() {
             </button>
           ))}
 
-          <div className="pt-8 px-4">
-            <div className="p-6 rounded-[2rem] bg-brand-accent/5 border border-brand-accent/10 relative overflow-hidden">
-              <p className="text-[8px] font-mono text-brand-accent uppercase tracking-widest mb-2 font-black">Link Público</p>
-              <button onClick={handleCopy} className="flex items-center gap-2 text-brand-main hover:text-brand-accent transition-all group/link">
-                <span className="text-xs font-display font-black uppercase tracking-tight">
-                  {copied ? 'Copiado!' : 'Copiar link'}
-                </span>
-                {copied ? <Check size={12} className="text-brand-success" /> : <ExternalLink size={12} />}
-              </button>
-              <p className="text-[9px] font-mono text-brand-muted mt-2 break-all">{bookingLink}</p>
-            </div>
-          </div>
         </nav>
 
         <div className="flex-1 w-full space-y-10">
@@ -393,19 +393,60 @@ export default function SettingsPage() {
                           </div>
                         </div>
                         {!schedule.closed && (
-                          <div className="flex gap-6 flex-wrap">
-                            {[
-                              { label: 'Abertura', key: 'open', color: 'brand-accent' },
-                              { label: 'Fechamento', key: 'close', color: 'rose-500' },
-                            ].map(f => (
-                              <div key={f.key} className="space-y-2">
-                                <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest font-black">{f.label}</p>
-                                <input type="time" value={(schedule as any)[f.key] || ''}
-                                  onChange={e => setConfig(c => ({ ...c, workingHours: { ...c.workingHours, [day]: { ...c.workingHours[day], [f.key]: e.target.value } } }))}
-                                  className={`rounded-2xl px-5 py-3 font-mono font-black outline-none text-sm text-${f.color}`}
-                                  style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }} />
-                              </div>
-                            ))}
+                          <div className="flex flex-col gap-4 w-full md:w-auto">
+                            {/* Abertura / Fechamento */}
+                            <div className="flex gap-6 flex-wrap">
+                              {[
+                                { label: 'Abertura', key: 'open', color: 'brand-accent' },
+                                { label: 'Fechamento', key: 'close', color: 'rose-500' },
+                              ].map(f => (
+                                <div key={f.key} className="space-y-2">
+                                  <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest font-black">{f.label}</p>
+                                  <input type="time" value={(schedule as any)[f.key] || ''}
+                                    onChange={e => setConfig(c => ({ ...c, workingHours: { ...c.workingHours, [day]: { ...c.workingHours[day], [f.key]: e.target.value } } }))}
+                                    className={`rounded-2xl px-5 py-3 font-mono font-black outline-none text-sm text-${f.color}`}
+                                    style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }} />
+                                </div>
+                              ))}
+                            </div>
+                            {/* Pausa / Almoço */}
+                            <div className="flex items-center gap-4 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => setConfig(c => ({
+                                  ...c,
+                                  workingHours: {
+                                    ...c.workingHours,
+                                    [day]: {
+                                      ...c.workingHours[day],
+                                      breakStart: c.workingHours[day].breakStart ? undefined : '12:00',
+                                      breakEnd: c.workingHours[day].breakEnd ? undefined : '13:00',
+                                    }
+                                  }
+                                }))}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-mono font-black uppercase tracking-widest transition-all ${schedule.breakStart ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' : 'text-brand-muted border border-white/10 hover:border-amber-500/30 hover:text-amber-400'}`}
+                                style={{ background: schedule.breakStart ? undefined : 'var(--input-bg)' }}
+                              >
+                                <iconify-icon icon="solar:cup-hot-bold-duotone" class="text-base" />
+                                {schedule.breakStart ? 'Pausa ativa' : 'Adicionar pausa'}
+                              </button>
+                              {schedule.breakStart && (
+                                <div className="flex gap-4 flex-wrap">
+                                  {[
+                                    { label: 'Início pausa', key: 'breakStart' },
+                                    { label: 'Fim pausa', key: 'breakEnd' },
+                                  ].map(f => (
+                                    <div key={f.key} className="space-y-2">
+                                      <p className="text-[10px] font-mono text-amber-500/70 uppercase tracking-widest font-black">{f.label}</p>
+                                      <input type="time" value={(schedule as any)[f.key] || ''}
+                                        onChange={e => setConfig(c => ({ ...c, workingHours: { ...c.workingHours, [day]: { ...c.workingHours[day], [f.key]: e.target.value } } }))}
+                                        className="rounded-2xl px-5 py-3 font-mono font-black outline-none text-sm text-amber-400"
+                                        style={{ background: 'var(--input-bg)', border: '1px solid rgba(245,158,11,0.3)' }} />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>

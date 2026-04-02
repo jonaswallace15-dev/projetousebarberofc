@@ -1,27 +1,43 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { supabaseService } from '@/services/supabaseService';
 import { useAuth } from '@/components/AuthProvider';
+import { useUI } from '@/components/UIProvider';
 import type { Wallet, WalletTransaction } from '@/types';
+
+interface WithdrawalRecord {
+  id: string;
+  amount: number;
+  pixKey: string;
+  status: string;
+  createdAt: string;
+}
 
 export default function WalletsPage() {
   const { user } = useAuth();
+  const { toast } = useUI();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [withdrawModal, setWithdrawModal] = useState<{ wallet: Wallet } | null>(null);
+  const [withdrawForm, setWithdrawForm] = useState({ amount: '', pixKey: '' });
+  const [withdrawing, setWithdrawing] = useState(false);
 
-  useEffect(() => {
+  const loadData = () => {
     if (!user) return;
-    // Wallets are fetched from the walletService endpoint
     Promise.all([
       fetch('/api/wallets').then(r => r.json()).catch(() => []),
       fetch('/api/wallets/transactions').then(r => r.json()).catch(() => []),
-    ]).then(([w, t]) => {
+      fetch('/api/wallets/withdraw').then(r => r.json()).catch(() => []),
+    ]).then(([w, t, wd]) => {
       setWallets(Array.isArray(w) ? w : []);
       setTransactions(Array.isArray(t) ? t : []);
+      setWithdrawals(Array.isArray(wd) ? wd : []);
     }).finally(() => setLoading(false));
-  }, [user]);
+  };
+
+  useEffect(() => { loadData(); }, [user]);
 
   const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
 
@@ -38,6 +54,29 @@ export default function WalletsPage() {
     };
     return icons[type] || 'solar:wallet-bold-duotone';
   };
+
+  const handleWithdraw = async () => {
+    if (!withdrawModal) return;
+    const amount = parseFloat(withdrawForm.amount.replace(',', '.'));
+    if (!amount || amount <= 0 || !withdrawForm.pixKey.trim()) return;
+    setWithdrawing(true);
+    try {
+      const res = await fetch('/api/wallets/withdraw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletId: withdrawModal.wallet.id, amount, pixKey: withdrawForm.pixKey.trim() }),
+      });
+      const data = await res.json();
+      if (data.error) { toast(data.error, 'error'); return; }
+      setWithdrawModal(null);
+      setWithdrawForm({ amount: '', pixKey: '' });
+      toast('Saque solicitado com sucesso!', 'success');
+      loadData();
+    } catch { toast('Erro ao solicitar saque.', 'error'); }
+    finally { setWithdrawing(false); }
+  };
+
+  const statusColor = (s: string) => s === 'Aprovado' ? 'text-brand-success' : s === 'Rejeitado' ? 'text-rose-500' : 'text-amber-400';
 
   if (loading) {
     return (
@@ -97,10 +136,17 @@ export default function WalletsPage() {
                 </span>
               </div>
               <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest font-black mb-2">Saldo Disponível</p>
-              <div className="text-4xl font-display font-black text-brand-success tracking-tighter">
+              <div className="text-4xl font-display font-black text-brand-success tracking-tighter mb-6">
                 <span className="text-lg mr-1 opacity-50">R$</span>
                 {(wallet.balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </div>
+              <button
+                onClick={() => { setWithdrawModal({ wallet }); setWithdrawForm({ amount: '', pixKey: '' }); }}
+                className="w-full py-3 rounded-2xl text-[11px] font-mono font-black uppercase tracking-widest transition-all hover:border-brand-accent/40 hover:text-brand-accent active:scale-95"
+                style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}
+              >
+                Solicitar Saque
+              </button>
             </div>
           ))}
         </div>
@@ -140,6 +186,101 @@ export default function WalletsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Saques */}
+      {withdrawals.length > 0 && (
+        <div className="space-y-6">
+          <h2 className="text-2xl font-display font-black text-brand-main uppercase tracking-tight flex items-center gap-3 px-2">
+            <iconify-icon icon="solar:transfer-horizontal-bold-duotone" class="text-3xl text-brand-accent" />
+            Saques
+          </h2>
+          <div className="flashlight-card rounded-[3rem] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-[10px] font-mono text-brand-muted uppercase tracking-[0.2em] font-black" style={{ background: 'var(--input-bg)', borderBottom: '1px solid var(--card-border)' }}>
+                    <th className="px-8 py-6 text-left">Chave PIX</th>
+                    <th className="px-8 py-6 text-left hidden md:table-cell">Data</th>
+                    <th className="px-8 py-6 text-left">Status</th>
+                    <th className="px-8 py-6 text-right">Valor</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y" style={{ borderColor: 'var(--card-border)' }}>
+                  {withdrawals.map(w => (
+                    <tr key={w.id} className="hover:bg-brand-accent/[0.02] transition-colors">
+                      <td className="px-8 py-6 font-mono text-sm text-brand-main">{w.pixKey}</td>
+                      <td className="px-8 py-6 hidden md:table-cell text-[11px] font-mono text-brand-muted">{new Date(w.createdAt).toLocaleDateString('pt-BR')}</td>
+                      <td className="px-8 py-6">
+                        <span className={`text-[9px] font-mono font-black uppercase tracking-widest ${statusColor(w.status)}`}>{w.status}</span>
+                      </td>
+                      <td className="px-8 py-6 text-right font-mono font-black text-rose-400">
+                        - R$ {w.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Saque */}
+      {withdrawModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+          <div className="flashlight-card w-full max-w-md rounded-[3rem] overflow-hidden" style={{ background: 'var(--header-bg)', border: '1px solid var(--card-border)' }}>
+            <div className="px-10 pt-10 pb-6 flex justify-between items-start">
+              <div>
+                <span className="text-[10px] font-mono font-black text-brand-accent uppercase tracking-widest mb-3 block">Saque PIX</span>
+                <h2 className="text-3xl font-display font-black text-brand-main uppercase">Solicitar<span className="text-brand-accent">.</span></h2>
+              </div>
+              <button onClick={() => setWithdrawModal(null)} className="w-12 h-12 rounded-full flex items-center justify-center text-brand-muted hover:text-brand-main transition-all hover:rotate-90" style={{ background: 'var(--input-bg)' }}>✕</button>
+            </div>
+
+            <div className="px-10 pb-10 space-y-6">
+              <div className="p-4 rounded-2xl flex items-center justify-between" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+                <span className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Saldo disponível</span>
+                <span className="font-display font-black text-brand-success text-xl">R$ {(withdrawModal.wallet.balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest ml-1">Valor do saque (R$)</label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  max={withdrawModal.wallet.balance}
+                  value={withdrawForm.amount}
+                  onChange={e => setWithdrawForm(f => ({ ...f, amount: e.target.value }))}
+                  placeholder="0,00"
+                  className="w-full rounded-2xl py-4 px-6 text-brand-accent font-mono font-black text-xl outline-none"
+                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest ml-1">Chave PIX</label>
+                <input
+                  type="text"
+                  value={withdrawForm.pixKey}
+                  onChange={e => setWithdrawForm(f => ({ ...f, pixKey: e.target.value }))}
+                  placeholder="CPF, e-mail, telefone ou chave aleatória"
+                  className="w-full rounded-2xl py-4 px-6 text-brand-main font-medium outline-none"
+                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
+                />
+              </div>
+
+              <button
+                onClick={handleWithdraw}
+                disabled={withdrawing || !withdrawForm.amount || !withdrawForm.pixKey}
+                className="w-full py-5 rounded-2xl bg-brand-accent text-white font-display font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(0,112,255,0.3)] hover:opacity-90 transition-all disabled:opacity-40"
+              >
+                {withdrawing ? 'Processando...' : 'Confirmar Saque'}
+              </button>
             </div>
           </div>
         </div>

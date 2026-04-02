@@ -8,6 +8,9 @@ export async function POST(request: NextRequest) {
   if (!email || !password || !name) {
     return NextResponse.json({ error: 'email, password e name são obrigatórios' }, { status: 400 });
   }
+  if (password.length < 6) {
+    return NextResponse.json({ error: 'A senha deve ter no mínimo 6 caracteres' }, { status: 400 });
+  }
 
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) {

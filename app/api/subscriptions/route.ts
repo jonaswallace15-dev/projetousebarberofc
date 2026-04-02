@@ -10,12 +10,24 @@ export async function GET() {
     const subscriptions = await prisma.clientSubscription.findMany({
       where: { userId: session.user.id },
       include: {
-        client: { select: { name: true } },
-        plan: { select: { name: true } },
+        client: { select: { name: true, phone: true, email: true } },
+        plan: { select: { name: true, price: true } },
       },
+      orderBy: { id: 'desc' },
     });
 
-    return NextResponse.json(subscriptions);
+    return NextResponse.json(subscriptions.map((s: any) => ({
+      id: s.id,
+      planId: s.planId,
+      clientId: s.clientId,
+      clientName: s.client.name,
+      clientPhone: s.client.phone,
+      clientEmail: s.client.email,
+      planName: s.plan.name,
+      planPrice: s.plan.price,
+      stripeSubscriptionId: (s as any).stripeSubscriptionId || (s.data as any)?.stripeSubscriptionId || null,
+      subscribedAt: (s.data as any)?.subscribedAt || (s.data as any)?.simulatedAt || null,
+    })));
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

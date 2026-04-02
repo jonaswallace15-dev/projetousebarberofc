@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { creditWallet } from '@/lib/creditWallet';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -74,6 +75,49 @@ export async function POST(request: NextRequest) {
       appointment = await prisma.appointment.update({ where: { id }, data });
     } else {
       appointment = await prisma.appointment.create({ data });
+    }
+
+    // Auto-upsert client whenever phone is available (any status)
+    const clientPhone = body.clientPhone ?? body.client_phone ?? null;
+    if (clientPhone) {
+      const clientEmail = body.clientEmail ?? body.client_email ?? null;
+      try {
+        const confirmedAppts = await prisma.appointment.findMany({
+          where: { userId, clientName: clientName || '', status: 'Confirmado' },
+          select: { price: true, date: true },
+          orderBy: { date: 'desc' },
+        });
+        const totalSpent = confirmedAppts.reduce((s, a) => s + (a.price || 0), 0);
+        const frequency = confirmedAppts.length;
+        const lastVisit = confirmedAppts[0]?.date || date || '';
+        const tag = frequency >= 5 ? 'VIP' : frequency >= 2 ? 'Recorrente' : 'Novo';
+        const existing = await prisma.client.findFirst({ where: { userId, phone: clientPhone } });
+        if (existing) {
+          await prisma.client.update({
+            where: { id: existing.id },
+            data: { name: clientName || existing.name, totalSpent, frequency, tag, lastVisit, ...(clientEmail ? { email: clientEmail } : {}) },
+          });
+        } else {
+          await prisma.client.create({
+            data: { userId, name: clientName || '', phone: clientPhone, email: clientEmail || null, totalSpent, frequency, tag, lastVisit },
+          });
+        }
+      } catch (e) { console.error('[client-upsert]', e); }
+    }
+
+    // Creditar carteira apenas quando confirmado
+    if (status === 'Confirmado') {
+      const apptPrice = appointment.price ?? body.price ?? 0;
+      if (apptPrice > 0) {
+        try {
+          await creditWallet(
+            userId,
+            apptPrice,
+            appointment.id,
+            `Pagamento PIX — ${appointment.serviceName} (${appointment.clientName})`,
+          );
+        } catch (e) { console.error('[creditWallet]', e); }
+      }
     }
 
     return NextResponse.json({

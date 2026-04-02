@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { SessionProvider } from "next-auth/react";
+import { UIProvider } from "@/components/UIProvider";
 
 export const metadata: Metadata = {
   title: "Usebarber Pro Suite",
@@ -24,7 +25,9 @@ export default function RootLayout({
       <body className="antialiased">
         <SessionProvider>
           <AuthProvider>
-            {children}
+            <UIProvider>
+              {children}
+            </UIProvider>
           </AuthProvider>
         </SessionProvider>
       </body>

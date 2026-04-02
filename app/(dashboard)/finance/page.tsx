@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Trash2 } from 'lucide-react';
 import { supabaseService } from '@/services/supabaseService';
 import { useAuth } from '@/components/AuthProvider';
+import { useUI } from '@/components/UIProvider';
 import type { FinanceTransaction } from '@/types';
 
 const emptyTransaction: Partial<FinanceTransaction> = {
@@ -17,6 +18,7 @@ const emptyTransaction: Partial<FinanceTransaction> = {
 
 export default function FinancePage() {
   const { user, userRole } = useAuth();
+  const { confirm } = useUI();
   const isBarbeiro = userRole === 'Barbeiro';
   const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +62,7 @@ export default function FinancePage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir transação?')) return;
+    if (!await confirm({ message: 'Excluir transação?', danger: true, confirmLabel: 'Excluir' })) return;
     await supabaseService.deleteTransaction(id);
     setTransactions(prev => prev.filter(t => t.id !== id));
   };

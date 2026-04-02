@@ -95,6 +95,8 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const { id } = await request.json();
+    // Remove subscriptions first to avoid FK constraint
+    await prisma.clientSubscription.deleteMany({ where: { clientId: id } });
     await prisma.client.deleteMany({
       where: { id, userId: session.user.id },
     });

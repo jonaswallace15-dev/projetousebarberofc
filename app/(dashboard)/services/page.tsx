@@ -1,16 +1,222 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Clock, Tag } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Edit2, Trash2, Clock, Tag, Upload, X as XIcon, Image as ImageIcon } from 'lucide-react';
 import { supabaseService } from '@/services/supabaseService';
 import { useAuth } from '@/components/AuthProvider';
+import { useUI } from '@/components/UIProvider';
 import type { Service, Product } from '@/types';
 
 const emptyService: Partial<Service> = { name: '', price: 0, duration: 30, active: true };
 const emptyProduct: Partial<Product> = { name: '', price: 0, stock: 0, active: true };
 
+/* ─── Modal Component ─── */
+function ServiceProductModal({
+  type, serviceForm, productForm, saving,
+  onClose, onChangeService, onChangeProduct,
+  onSaveService, onSaveProduct,
+  onDeleteService, onDeleteProduct,
+}: {
+  type: 'service' | 'product';
+  serviceForm: Partial<Service>;
+  productForm: Partial<Product>;
+  saving: boolean;
+  onClose: () => void;
+  onChangeService: (fn: (f: Partial<Service>) => Partial<Service>) => void;
+  onChangeProduct: (fn: (f: Partial<Product>) => Partial<Product>) => void;
+  onSaveService: (e: React.FormEvent) => void;
+  onSaveProduct: (e: React.FormEvent) => void;
+  onDeleteService: (id: string) => void;
+  onDeleteProduct: (id: string) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const isService = type === 'service';
+  const form = isService ? serviceForm : productForm;
+  const isEditing = !!form.id;
+
+  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const url = ev.target?.result as string;
+      if (isService) onChangeService(f => ({ ...f, image: url }));
+      else onChangeProduct(f => ({ ...f, image: url }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearImage = () => {
+    if (isService) onChangeService(f => ({ ...f, image: undefined }));
+    else onChangeProduct(f => ({ ...f, image: undefined }));
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const handleDelete = () => {
+    if (!form.id) return;
+    if (isService) onDeleteService(form.id);
+    else onDeleteProduct(form.id);
+    onClose();
+  };
+
+  const inputCls = "w-full rounded-2xl px-5 py-4 text-brand-main font-medium outline-none transition-all focus:border-brand-accent/60";
+  const inputStyle = { background: 'var(--input-bg)', border: '1px solid var(--input-border)' };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg rounded-[3rem] overflow-hidden shadow-[0_40px_120px_rgba(0,0,0,0.8)]"
+        style={{ background: 'var(--header-bg)', border: '1px solid var(--card-border)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-10 pt-10 pb-7 flex items-start justify-between border-b" style={{ borderColor: 'var(--card-border)' }}>
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-3">
+              <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse" />
+              <span className="text-[9px] font-mono uppercase tracking-widest text-brand-accent font-bold">
+                {isEditing ? 'Editar' : 'Novo'} {isService ? 'Serviço' : 'Produto'}
+              </span>
+            </div>
+            <h2 className="text-3xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
+              {isEditing ? (isService ? serviceForm.name || 'Serviço' : productForm.name || 'Produto') : (isService ? 'Novo Serviço' : 'Novo Produto')}
+              <span className="text-brand-accent">.</span>
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-12 h-12 rounded-full flex items-center justify-center text-brand-muted hover:text-brand-main hover:rotate-90 transition-all"
+            style={{ background: 'var(--input-bg)' }}
+          >
+            <XIcon size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <form onSubmit={isService ? onSaveService : onSaveProduct} className="px-10 py-8 space-y-6">
+
+          {/* Foto */}
+          <div>
+            <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest mb-3 block">
+              Foto do {isService ? 'Serviço' : 'Produto'}
+            </label>
+            <div className="relative">
+              {form.image ? (
+                <div className="relative w-full h-44 rounded-2xl overflow-hidden group">
+                  <img src={form.image} alt="preview" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      className="px-4 py-2 rounded-xl bg-brand-accent text-white text-[10px] font-mono font-black uppercase tracking-widest flex items-center gap-2"
+                    >
+                      <Upload size={12} /> Trocar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearImage}
+                      className="px-4 py-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-mono font-black uppercase tracking-widest flex items-center gap-2"
+                    >
+                      <XIcon size={12} /> Remover
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="w-full h-36 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 text-brand-muted hover:text-brand-accent hover:border-brand-accent/40 transition-all group"
+                  style={{ borderColor: 'var(--card-border)', background: 'var(--input-bg)' }}
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center group-hover:bg-brand-accent/10 transition-all" style={{ background: 'var(--card-border)' }}>
+                    <ImageIcon size={20} />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[11px] font-mono font-black uppercase tracking-widest">Adicionar Foto</p>
+                    <p className="text-[9px] font-mono text-brand-muted/60 mt-0.5">JPG, PNG ou WEBP</p>
+                  </div>
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
+            </div>
+          </div>
+
+          {/* Nome */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Nome</label>
+            <input
+              required
+              placeholder={isService ? 'Ex: Corte Degradê' : 'Ex: Pomada Modeladora'}
+              value={form.name || ''}
+              onChange={e => isService
+                ? onChangeService(f => ({ ...f, name: e.target.value }))
+                : onChangeProduct(f => ({ ...f, name: e.target.value }))}
+              className={inputCls}
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Preço + Duração/Estoque */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Preço (R$)</label>
+              <input
+                required type="number" min="0" step="0.01"
+                value={form.price || 0}
+                onChange={e => isService
+                  ? onChangeService(f => ({ ...f, price: Number(e.target.value) }))
+                  : onChangeProduct(f => ({ ...f, price: Number(e.target.value) }))}
+                className={`${inputCls} font-mono font-black text-brand-accent`}
+                style={inputStyle}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">
+                {isService ? 'Duração (min)' : 'Estoque'}
+              </label>
+              <input
+                required type="number" min={isService ? 5 : 0}
+                value={isService ? (serviceForm.duration || 30) : (productForm.stock || 0)}
+                onChange={e => isService
+                  ? onChangeService(f => ({ ...f, duration: Number(e.target.value) }))
+                  : onChangeProduct(f => ({ ...f, stock: Number(e.target.value) }))}
+                className={`${inputCls} font-mono font-black`}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+
+          {/* Ações */}
+          <div className={`flex gap-3 pt-2 ${isEditing ? 'flex-col sm:flex-row' : ''}`}>
+            {isEditing && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl border border-rose-500/20 bg-rose-500/5 text-rose-400 hover:bg-rose-500/15 transition-all font-mono font-black text-[11px] uppercase tracking-widest sm:w-auto w-full"
+              >
+                <Trash2 size={14} /> Excluir
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 py-5 rounded-2xl bg-brand-accent text-white font-display font-black text-[13px] uppercase tracking-[0.2em] shadow-[0_0_30px_rgba(0,112,255,0.3)] hover:opacity-90 hover:-translate-y-0.5 transition-all disabled:opacity-40"
+            >
+              {saving ? 'Salvando...' : `Salvar ${isService ? 'Serviço' : 'Produto'}`}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function ServicesPage() {
   const { user } = useAuth();
+  const { confirm } = useUI();
   const [services, setServices] = useState<Service[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,13 +267,13 @@ export default function ServicesPage() {
   };
 
   const handleDeleteService = async (id: string) => {
-    if (!confirm('Excluir serviço?')) return;
+    if (!await confirm({ message: 'Excluir serviço?', danger: true, confirmLabel: 'Excluir' })) return;
     await supabaseService.deleteService(id);
     setServices(prev => prev.filter(s => s.id !== id));
   };
 
   const handleDeleteProduct = async (id: string) => {
-    if (!confirm('Excluir produto?')) return;
+    if (!await confirm({ message: 'Excluir produto?', danger: true, confirmLabel: 'Excluir' })) return;
     await supabaseService.deleteProduct(id);
     setProducts(prev => prev.filter(p => p.id !== id));
   };
@@ -285,66 +491,19 @@ export default function ServicesPage() {
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(12px)' }}>
-          <div className="w-full max-w-md rounded-[2.5rem] p-8 space-y-6" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-display font-black text-brand-main uppercase tracking-tight">
-                {editingType === 'service'
-                  ? (serviceForm.id ? 'Editar Serviço' : 'Novo Serviço')
-                  : (productForm.id ? 'Editar Produto' : 'Novo Produto')}
-              </h2>
-              <button onClick={() => setModalOpen(false)} className="w-10 h-10 rounded-xl flex items-center justify-center text-brand-muted hover:text-brand-main transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>✕</button>
-            </div>
-
-            {editingType === 'service' ? (
-              <form onSubmit={handleSaveService} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Nome</label>
-                  <input required value={serviceForm.name || ''} onChange={e => setServiceForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full rounded-2xl px-5 py-4 text-brand-main font-medium outline-none transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Preço (R$)</label>
-                    <input required type="number" min="0" value={serviceForm.price || 0} onChange={e => setServiceForm(f => ({ ...f, price: Number(e.target.value) }))}
-                      className="w-full rounded-2xl px-5 py-4 text-brand-main font-mono font-bold outline-none transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Duração (min)</label>
-                    <input required type="number" min="5" value={serviceForm.duration || 30} onChange={e => setServiceForm(f => ({ ...f, duration: Number(e.target.value) }))}
-                      className="w-full rounded-2xl px-5 py-4 text-brand-main font-mono font-bold outline-none transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
-                  </div>
-                </div>
-                <button type="submit" disabled={saving} className="w-full py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-sm uppercase tracking-widest hover:bg-brand-accent/90 transition-all disabled:opacity-50">
-                  {saving ? 'Salvando...' : 'Salvar Serviço'}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleSaveProduct} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Nome</label>
-                  <input required value={productForm.name || ''} onChange={e => setProductForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full rounded-2xl px-5 py-4 text-brand-main font-medium outline-none transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Preço (R$)</label>
-                    <input required type="number" min="0" value={productForm.price || 0} onChange={e => setProductForm(f => ({ ...f, price: Number(e.target.value) }))}
-                      className="w-full rounded-2xl px-5 py-4 text-brand-main font-mono font-bold outline-none transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Estoque</label>
-                    <input required type="number" min="0" value={productForm.stock || 0} onChange={e => setProductForm(f => ({ ...f, stock: Number(e.target.value) }))}
-                      className="w-full rounded-2xl px-5 py-4 text-brand-main font-mono font-bold outline-none transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
-                  </div>
-                </div>
-                <button type="submit" disabled={saving} className="w-full py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-sm uppercase tracking-widest hover:bg-brand-accent/90 transition-all disabled:opacity-50">
-                  {saving ? 'Salvando...' : 'Salvar Produto'}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
+        <ServiceProductModal
+          type={editingType}
+          serviceForm={serviceForm}
+          productForm={productForm}
+          saving={saving}
+          onClose={() => setModalOpen(false)}
+          onChangeService={setServiceForm}
+          onChangeProduct={setProductForm}
+          onSaveService={handleSaveService}
+          onSaveProduct={handleSaveProduct}
+          onDeleteService={handleDeleteService}
+          onDeleteProduct={handleDeleteProduct}
+        />
       )}
     </div>
   );

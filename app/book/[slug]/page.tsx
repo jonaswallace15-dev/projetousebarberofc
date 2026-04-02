@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, Star, ChevronRight, CheckCircle2, MapPin, Instagram, Smartphone } from 'lucide-react';
 import { supabaseService } from '@/services/supabaseService';
 import { abacatePayService } from '@/services/abacatePayService';
+import { useUI } from '@/components/UIProvider';
 import type { Service, Barber, Appointment, Product } from '@/types';
 
 interface PageProps {
@@ -12,6 +13,7 @@ interface PageProps {
 
 export default function BookingPage({ params }: PageProps) {
   const { slug } = params;
+  const { toast } = useUI();
 
   const [businessInfo, setBusinessInfo] = useState<any>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -24,7 +26,8 @@ export default function BookingPage({ params }: PageProps) {
   const [step, setStep] = useState(1);
   const [complete, setComplete] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentBilling, setPaymentBilling] = useState<{ id: string; url: string; status: string } | null>(null);
+  const [paymentBilling, setPaymentBilling] = useState<{ id: string; url: string; status: string; pixQrCode?: string | null; brCode?: string | null } | null>(null);
+  const [pixCopied, setPixCopied] = useState(false);
   const pendingAppointmentRef = useRef<(Partial<Appointment> & { user_id?: string }) | null>(null);
 
   const [bookingData, setBookingData] = useState({
@@ -113,9 +116,18 @@ export default function BookingPage({ params }: PageProps) {
       const fitsInSchedule = currentEnd <= end.getTime();
 
       let isInBreak = false;
+      // legacy field names
       if (schedule.breakStart && schedule.breakEnd) {
         const [bSH, bSM] = schedule.breakStart.split(':').map(Number);
         const [bEH, bEM] = schedule.breakEnd.split(':').map(Number);
+        const bStart = new Date(bookingData.date + 'T00:00:00'); bStart.setHours(bSH, bSM, 0, 0);
+        const bEnd = new Date(bookingData.date + 'T00:00:00'); bEnd.setHours(bEH, bEM, 0, 0);
+        isInBreak = currentStart < bEnd.getTime() && bStart.getTime() < currentEnd;
+      }
+      // new field names (hasPause / pauseStart / pauseEnd)
+      if (!isInBreak && schedule.hasPause && schedule.pauseStart && schedule.pauseEnd) {
+        const [bSH, bSM] = (schedule.pauseStart as string).split(':').map(Number);
+        const [bEH, bEM] = (schedule.pauseEnd as string).split(':').map(Number);
         const bStart = new Date(bookingData.date + 'T00:00:00'); bStart.setHours(bSH, bSM, 0, 0);
         const bEnd = new Date(bookingData.date + 'T00:00:00'); bEnd.setHours(bEH, bEM, 0, 0);
         isInBreak = currentStart < bEnd.getTime() && bStart.getTime() < currentEnd;
@@ -151,6 +163,8 @@ export default function BookingPage({ params }: PageProps) {
       const saved = await supabaseService.upsertAppointment({
         user_id: userId,
         clientName: bookingData.clientName,
+        clientPhone: bookingData.clientPhone,
+        clientEmail: bookingData.clientEmail,
         clientId: '',
         barberId: bookingData.barberId,
         barberName: barber?.name || '',
@@ -163,7 +177,12 @@ export default function BookingPage({ params }: PageProps) {
       });
 
       // Armazena dados completos para confirmar no polling (caso webhook não chegue a tempo)
-      pendingAppointmentRef.current = { ...saved, status: 'Confirmado' };
+      pendingAppointmentRef.current = {
+        ...saved,
+        status: 'Confirmado',
+        clientPhone: bookingData.clientPhone,
+        clientEmail: bookingData.clientEmail,
+      };
 
       // 2. Criar cobrança usando o ID do agendamento como externalId
       const billing = await abacatePayService.createBilling({
@@ -178,7 +197,7 @@ export default function BookingPage({ params }: PageProps) {
       setPaymentBilling(billing);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
-      alert(err.message || 'Erro ao gerar cobrança. Tente novamente.');
+      toast(err.message || 'Erro ao gerar cobrança. Tente novamente.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -189,7 +208,8 @@ export default function BookingPage({ params }: PageProps) {
     const interval = setInterval(async () => {
       try {
         const { status } = await abacatePayService.checkStatus(paymentBilling.id);
-        if (status === 'PAID') {
+        const isPaid = ['PAID', 'COMPLETED', 'paid', 'completed', 'APPROVED'].includes(status);
+        if (isPaid) {
           clearInterval(interval);
           // Confirma o agendamento caso o webhook não tenha chegado ainda
           if (pendingAppointmentRef.current) {
@@ -389,7 +409,12 @@ export default function BookingPage({ params }: PageProps) {
                 <div className="p-10 text-center bg-white/5 rounded-3xl border border-white/10 text-white/40 text-xs uppercase font-black tracking-widest">
                   Nenhum barbeiro disponível.
                 </div>
-              ) : barbers.filter(b => !b.services || b.services.length === 0 || b.services.includes(bookingData.serviceId)).map(b => (
+              ) : barbers.filter(b =>
+                // null/undefined = legacy barber, show for all services
+                // empty array = no services configured, hide from all
+                // populated array = only show if selected service is included
+                b.services == null || b.services.includes(bookingData.serviceId)
+              ).map(b => (
                 <button
                   key={b.id}
                   onClick={() => { setBookingData(d => ({ ...d, barberId: b.id })); setStep(4); }}
@@ -407,7 +432,6 @@ export default function BookingPage({ params }: PageProps) {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-display font-black text-2xl uppercase tracking-tighter text-white group-hover:text-brand-accent transition-colors">{b.name}</h3>
-                    <p className="text-[10px] font-mono text-white/40 uppercase tracking-widest mt-1">{b.role}</p>
                   </div>
                   <ChevronRight size={22} className="text-white/20 group-hover:text-brand-accent transition-all" />
                 </button>
@@ -554,15 +578,53 @@ export default function BookingPage({ params }: PageProps) {
               </div>
             </div>
 
-            <a
-              href={paymentBilling.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full rounded-[2.5rem] py-6 bg-brand-accent text-white font-display font-black text-sm uppercase tracking-[0.3em] shadow-[0_20px_50px_rgba(0,112,255,0.3)] flex items-center justify-center gap-4 hover:-translate-y-1 transition-all"
-            >
-              <iconify-icon icon="solar:card-bold-duotone" class="text-2xl" />
-              ABRIR PÁGINA DE PAGAMENTO
-            </a>
+            {/* QR Code PIX inline */}
+            {paymentBilling.pixQrCode ? (
+              <div className="w-full flex flex-col items-center gap-6">
+                <div className="p-4 bg-white rounded-[2rem]">
+                  <img
+                    src={paymentBilling.pixQrCode.startsWith('data:') ? paymentBilling.pixQrCode : `data:image/png;base64,${paymentBilling.pixQrCode}`}
+                    alt="QR Code PIX"
+                    className="w-56 h-56 object-contain"
+                  />
+                </div>
+                {paymentBilling.brCode && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(paymentBilling.brCode!);
+                      setPixCopied(true);
+                      setTimeout(() => setPixCopied(false), 2000);
+                    }}
+                    className="w-full rounded-[2rem] py-5 flex items-center justify-center gap-3 font-mono font-black text-[11px] uppercase tracking-[0.2em] transition-all active:scale-95"
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    {pixCopied ? (
+                      <><span className="text-brand-success">✓</span> Código copiado!</>
+                    ) : (
+                      <><iconify-icon icon="solar:copy-bold-duotone" class="text-lg text-brand-accent" /> Copiar código PIX</>
+                    )}
+                  </button>
+                )}
+                <a
+                  href={paymentBilling.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/30 text-[11px] font-mono uppercase tracking-widest hover:text-white/60 transition-colors underline underline-offset-4"
+                >
+                  Abrir página de pagamento
+                </a>
+              </div>
+            ) : (
+              <a
+                href={paymentBilling.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full rounded-[2.5rem] py-6 bg-brand-accent text-white font-display font-black text-sm uppercase tracking-[0.3em] shadow-[0_20px_50px_rgba(0,112,255,0.3)] flex items-center justify-center gap-4 hover:-translate-y-1 transition-all"
+              >
+                <iconify-icon icon="solar:card-bold-duotone" class="text-2xl" />
+                ABRIR PÁGINA DE PAGAMENTO
+              </a>
+            )}
 
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-3 text-white/30 text-xs font-mono uppercase tracking-widest">
@@ -573,7 +635,8 @@ export default function BookingPage({ params }: PageProps) {
                 onClick={async () => {
                   try {
                     const { status } = await abacatePayService.checkStatus(paymentBilling.id);
-                    if (status === 'PAID') {
+                    const isPaid = ['PAID', 'COMPLETED', 'paid', 'completed', 'APPROVED'].includes(status);
+                    if (isPaid) {
                       if (pendingAppointmentRef.current) {
                         await supabaseService.upsertAppointment({ ...pendingAppointmentRef.current, status: 'Confirmado' });
                       }
@@ -581,16 +644,41 @@ export default function BookingPage({ params }: PageProps) {
                       setComplete(true);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     } else {
-                      alert('Pagamento ainda não confirmado. Aguarde alguns segundos e tente novamente.');
+                      toast(`Pagamento ainda não confirmado (status: ${status}). Aguarde alguns segundos e tente novamente.`, 'warning');
                     }
                   } catch {
-                    alert('Erro ao verificar pagamento.');
+                    toast('Erro ao verificar pagamento.', 'error');
                   }
                 }}
                 className="text-white/30 text-[11px] font-mono uppercase tracking-widest hover:text-white/60 transition-colors underline underline-offset-4"
               >
                 Já paguei — verificar agora
               </button>
+
+              {/* Botão de simulação — apenas em dev/sandbox */}
+              {paymentBilling.status !== 'PAID' && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const { status } = await abacatePayService.simulatePayment(paymentBilling.id);
+                      if (status === 'PAID') {
+                        if (pendingAppointmentRef.current) {
+                          await supabaseService.upsertAppointment({ ...pendingAppointmentRef.current, status: 'Confirmado' });
+                        }
+                        setPaymentBilling(null);
+                        setComplete(true);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    } catch {
+                      toast('Erro ao simular pagamento.', 'error');
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-mono uppercase tracking-widest text-amber-400 border border-amber-500/20 hover:border-amber-500/40 transition-all"
+                  style={{ background: 'rgba(245,158,11,0.05)' }}
+                >
+                  ⚡ Simular pagamento (sandbox)
+                </button>
+              )}
             </div>
           </div>
         )}

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { CheckCircle2, Copy, Smartphone, Trash2, Edit3, XCircle, ChevronLeft, ChevronRight, TrendingUp, X } from 'lucide-react';
 import { ShimmerButton } from '@/components/ui/shimmer-button';
 import { useAuth } from '@/components/AuthProvider';
+import { useUI } from '@/components/UIProvider';
 import { supabaseService } from '@/services/supabaseService';
 import type { Appointment, Service, Barber } from '@/types';
 
@@ -14,6 +15,7 @@ const emptyForm = {
 
 export default function AppointmentsPage() {
   const { user, userRole } = useAuth();
+  const { toast, confirm } = useUI();
   const isBarbeiro = userRole === 'Barbeiro';
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -104,7 +106,7 @@ export default function AppointmentsPage() {
       const saved = await supabaseService.upsertAppointment(payload);
       setAppointments(prev => form.id ? prev.map(a => a.id === payload.id ? { ...a, ...saved } : a) : [saved, ...prev]);
       setModalOpen(false);
-    } catch (err: any) { alert(err.message || 'Erro ao salvar agendamento'); }
+    } catch (err: any) { toast(err.message || 'Erro ao salvar agendamento', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -114,7 +116,7 @@ export default function AppointmentsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Deseja cancelar este agendamento permanentemente?')) return;
+    if (!await confirm({ message: 'Deseja cancelar este agendamento permanentemente?', danger: true, confirmLabel: 'Cancelar agendamento' })) return;
     await supabaseService.deleteAppointment(id);
     setAppointments(prev => prev.filter(a => a.id !== id));
   };
@@ -169,7 +171,7 @@ export default function AppointmentsPage() {
                   {copied ? 'Copiado' : 'Copiar'}
                 </button>
                 <a href={`/book/${bookingSlug}`} target="_blank" className="flex items-center justify-center gap-3 bg-brand-accent hover:opacity-90 text-white font-display font-black text-[11px] uppercase tracking-widest py-4 rounded-2xl transition-all active:scale-95 shadow-[0_0_20px_rgba(0,102,255,0.3)]">
-                  Ver Vitrine
+                  Enviar Link
                 </a>
               </div>
             </div>
@@ -194,10 +196,11 @@ export default function AppointmentsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      <div className="flashlight-card rounded-[3.5rem] overflow-hidden border-white/5">
+        <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x" style={{ borderColor: 'var(--card-border)' }}>
         {/* Calendar */}
         <div className={`${view === 'Mensal' ? 'block' : 'hidden lg:block'} lg:col-span-1`}>
-          <div className="flashlight-card p-8 lg:p-10 rounded-[3.5rem] border-white/5 sticky top-32">
+          <div className="p-8 lg:p-10 sticky top-32">
             <div className="flex items-center justify-between mb-10">
               <h3 className="text-xl font-display font-bold text-brand-main capitalize">{monthName}</h3>
               <div className="flex gap-2">
@@ -240,7 +243,7 @@ export default function AppointmentsPage() {
         </div>
 
         {/* Appointments List */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 p-6 lg:p-8 space-y-4">
           {loading ? (
             <div className="space-y-4">{[1,2].map(i => <div key={i} className="h-28 animate-pulse rounded-[3rem]" style={{ background: 'var(--input-bg)' }} />)}</div>
           ) : filteredAppointments.length > 0 ? (
@@ -273,10 +276,10 @@ export default function AppointmentsPage() {
                   </button>
                   {app.status !== 'Finalizado' && app.status !== 'Cancelado' && (
                     <>
-                      <button onClick={() => { if (confirm('Finalizar este atendimento?')) updateStatus(app.id, 'Finalizado'); }} className="w-11 h-11 bg-brand-success/5 hover:bg-brand-success/20 text-brand-success/40 hover:text-brand-success border border-brand-success/10 rounded-xl flex items-center justify-center transition-all">
+                      <button onClick={async () => { if (await confirm({ message: 'Finalizar este atendimento?' })) updateStatus(app.id, 'Finalizado'); }} className="w-11 h-11 bg-brand-success/5 hover:bg-brand-success/20 text-brand-success/40 hover:text-brand-success border border-brand-success/10 rounded-xl flex items-center justify-center transition-all">
                         <CheckCircle2 size={16} />
                       </button>
-                      <button onClick={() => { if (confirm('Cancelar este agendamento?')) updateStatus(app.id, 'Cancelado'); }} className="w-11 h-11 bg-rose-500/5 hover:bg-rose-500/20 text-rose-500/40 hover:text-rose-500 border border-rose-500/10 rounded-xl flex items-center justify-center transition-all">
+                      <button onClick={async () => { if (await confirm({ message: 'Cancelar este agendamento?', danger: true })) updateStatus(app.id, 'Cancelado'); }} className="w-11 h-11 bg-rose-500/5 hover:bg-rose-500/20 text-rose-500/40 hover:text-rose-500 border border-rose-500/10 rounded-xl flex items-center justify-center transition-all">
                         <XCircle size={16} />
                       </button>
                     </>
@@ -296,6 +299,7 @@ export default function AppointmentsPage() {
               </ShimmerButton>
             </div>
           )}
+        </div>
         </div>
       </div>
 

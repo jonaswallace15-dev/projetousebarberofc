@@ -1,4 +1,4 @@
-export type AppointmentStatus = 'Confirmado' | 'Em andamento' | 'Finalizado' | 'Cancelado';
+export type AppointmentStatus = 'Pendente' | 'Confirmado' | 'Em andamento' | 'Finalizado' | 'Cancelado';
 export type UserRole = 'Proprietário' | 'Barbeiro' | 'Super Admin';
 export type PaymentMethod = 'Dinheiro' | 'Pix' | 'Cartão';
 export type ClientTag = 'VIP' | 'Recorrente' | 'Novo';

@@ -4,6 +4,8 @@ export interface AbacatePayResponse {
   id: string;
   url: string;
   status: string;
+  pixQrCode?: string | null;
+  brCode?: string | null;
 }
 
 export const abacatePayService = {
@@ -25,6 +27,13 @@ export const abacatePayService = {
     return apiFetch('/api/payments/abacatepay', {
       method: 'POST',
       body: JSON.stringify({ action: 'status', billingId }),
+    });
+  },
+
+  async simulatePayment(billingId: string): Promise<any> {
+    return apiFetch('/api/payments/abacatepay', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'simulate', billingId }),
     });
   },
 };

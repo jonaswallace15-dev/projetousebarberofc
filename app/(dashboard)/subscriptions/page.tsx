@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Users, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, Check, Link2, Zap, X as XIcon, ArrowRight, Loader2, Star, Wallet } from 'lucide-react';
 import { supabaseService } from '@/services/supabaseService';
 import { useAuth } from '@/components/AuthProvider';
+import { useUI } from '@/components/UIProvider';
 import type { SubscriptionPlan } from '@/types';
 
 const emptyPlan: Partial<SubscriptionPlan> = {
@@ -15,6 +16,7 @@ const emptyPlan: Partial<SubscriptionPlan> = {
 
 export default function SubscriptionsPage() {
   const { user } = useAuth();
+  const { toast, confirm } = useUI();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -24,6 +26,51 @@ export default function SubscriptionsPage() {
 
   // Client subscriptions
   const [clientSubs, setClientSubs] = useState<any[]>([]);
+
+  // Charge modal
+  const [chargeModal, setChargeModal] = useState<SubscriptionPlan | null>(null);
+  const [chargeForm, setChargeForm] = useState({ name: '', phone: '', email: '', taxId: '' });
+  const [charging, setCharging] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const getPlanLink = (plan: SubscriptionPlan) =>
+    typeof window !== 'undefined' ? `${window.location.origin}/plano/${plan.id}` : `/plano/${plan.id}`;
+
+  const handleCopyLink = (plan: SubscriptionPlan) => {
+    navigator.clipboard.writeText(getPlanLink(plan));
+    setCopiedId(plan.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+
+  const handleCharge = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chargeModal) return;
+    setCharging(true);
+    try {
+      const res = await fetch('/api/payments/stripe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create-checkout',
+          planId: chargeModal.id,
+          clientName: chargeForm.name,
+          clientPhone: chargeForm.phone,
+          clientEmail: chargeForm.email,
+          origin: window.location.origin,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Erro ao gerar cobrança');
+      window.open(data.url, '_blank');
+      setChargeModal(null);
+      setChargeForm({ name: '', phone: '', email: '', taxId: '' });
+    } catch (err: any) {
+      toast(err.message || 'Erro ao gerar cobrança', 'error');
+    } finally {
+      setCharging(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -59,7 +106,7 @@ export default function SubscriptionsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir plano?')) return;
+    if (!await confirm({ message: 'Excluir plano?', danger: true, confirmLabel: 'Excluir' })) return;
     await supabaseService.deletePlan(id);
     setPlans(prev => prev.filter(p => p.id !== id));
   };
@@ -100,13 +147,13 @@ export default function SubscriptionsPage() {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Planos Ativos', value: plans.length, icon: 'solar:medal-ribbons-star-bold-duotone', color: 'text-brand-accent' },
-          { label: 'Assinantes', value: clientSubs.length, icon: 'solar:users-group-two-rounded-bold-duotone', color: 'text-brand-success' },
-          { label: 'Receita Mensal', value: `R$ ${clientSubs.reduce((sum, s) => sum + (Number(s.price) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: 'solar:wallet-money-bold-duotone', color: 'text-brand-success' },
+          { label: 'Planos Ativos', value: plans.length, icon: <Star size={24} />, color: 'text-brand-accent' },
+          { label: 'Assinantes', value: clientSubs.length, icon: <Users size={24} />, color: 'text-brand-success' },
+          { label: 'Receita Mensal', value: `R$ ${clientSubs.reduce((sum, s) => sum + (Number(s.planPrice) || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: <Wallet size={24} />, color: 'text-brand-success' },
         ].map((stat, i) => (
           <div key={i} className="flashlight-card p-8 rounded-[2.5rem] flex items-center gap-6">
             <div className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center ${stat.color}`} style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
-              <iconify-icon icon={stat.icon} class="text-3xl" />
+              {stat.icon}
             </div>
             <div>
               <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest font-black">{stat.label}</p>
@@ -119,13 +166,13 @@ export default function SubscriptionsPage() {
       {/* Plans grid */}
       <div>
         <h2 className="text-2xl font-display font-black text-brand-main uppercase tracking-tight mb-6 flex items-center gap-3 px-2">
-          <iconify-icon icon="solar:medal-ribbons-star-bold-duotone" class="text-3xl text-brand-accent" />
+          <Star size={24} className="text-brand-accent" />
           Planos de Fidelidade
         </h2>
 
         {plans.length === 0 ? (
           <div className="flashlight-card p-16 rounded-[3.5rem] text-center">
-            <iconify-icon icon="solar:medal-ribbons-star-bold-duotone" class="text-7xl text-brand-muted/20 mb-6" />
+            <Star size={56} className="text-brand-muted/20 mx-auto mb-6" />
             <h3 className="text-2xl font-display font-black text-brand-main uppercase tracking-tight mb-4">Nenhum plano criado</h3>
             <p className="text-brand-muted text-sm leading-relaxed mb-8">Crie planos de fidelidade para fidelizar seus clientes.</p>
             <button onClick={() => openModal()} className="px-8 py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-sm uppercase tracking-widest hover:bg-brand-accent/90 transition-all">
@@ -140,7 +187,7 @@ export default function SubscriptionsPage() {
 
                 <div className="flex items-start justify-between mb-6">
                   <div className="w-14 h-14 rounded-[1.5rem] bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center text-brand-accent">
-                    <iconify-icon icon="solar:medal-ribbons-star-bold-duotone" class="text-2xl" />
+                    <Star size={22} />
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => openModal(plan)} className="w-10 h-10 rounded-xl flex items-center justify-center text-brand-muted hover:text-brand-accent transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
@@ -168,9 +215,34 @@ export default function SubscriptionsPage() {
                   </ul>
                 )}
 
-                <div className="pt-6 border-t flex items-center gap-3" style={{ borderColor: 'var(--card-border)' }}>
-                  <Users size={14} className="text-brand-accent" />
-                  <span className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">{plan.activeUsers || 0} assinante{(plan.activeUsers || 0) !== 1 ? 's' : ''}</span>
+                <div className="pt-6 border-t space-y-4" style={{ borderColor: 'var(--card-border)' }}>
+                  <div className="flex items-center gap-3">
+                    <Users size={14} className="text-brand-accent" />
+                    <span className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">{plan.activeUsers || 0} assinante{(plan.activeUsers || 0) !== 1 ? 's' : ''}</span>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleCopyLink(plan)}
+                      title="Copiar link"
+                      className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl transition-all text-[9px] font-mono font-black uppercase tracking-widest ${copiedId === plan.id ? 'bg-brand-success/15 text-brand-success border border-brand-success/30' : 'text-brand-muted hover:text-brand-accent'}`}
+                      style={copiedId !== plan.id ? { background: 'var(--input-bg)', border: '1px solid var(--card-border)' } : {}}
+                    >
+                      <Link2 size={15} />
+                      {copiedId === plan.id ? 'Copiado!' : 'Copiar'}
+                    </button>
+
+                    <button
+                      onClick={() => { setChargeModal(plan); setChargeForm({ name: '', phone: '', email: '', taxId: '' }); }}
+                      title="Gerar cobrança"
+                      className="flex flex-col items-center gap-1.5 py-3 rounded-2xl text-brand-muted hover:text-brand-accent transition-all text-[9px] font-mono font-black uppercase tracking-widest"
+                      style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}
+                    >
+                      <Zap size={15} />
+                      Cobrar
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -188,44 +260,164 @@ export default function SubscriptionsPage() {
       </div>
 
       {/* Client subscriptions */}
-      {clientSubs.length > 0 && (
-        <div className="space-y-6">
-          <h2 className="text-2xl font-display font-black text-brand-main uppercase tracking-tight flex items-center gap-3 px-2">
-            <iconify-icon icon="solar:users-group-two-rounded-bold-duotone" class="text-3xl text-brand-accent" />
-            Assinantes Ativos
-          </h2>
+      <div className="space-y-6">
+        <h2 className="text-2xl font-display font-black text-brand-main uppercase tracking-tight flex items-center gap-3 px-2">
+          <Users size={24} className="text-brand-accent" />
+          Assinantes Ativos
+        </h2>
+
+        {clientSubs.length === 0 ? (
+          <div className="flashlight-card p-14 rounded-[3rem] text-center">
+            <Users size={40} className="text-brand-muted/20 mx-auto mb-4" />
+            <p className="text-brand-muted text-sm font-mono uppercase tracking-widest">Nenhum assinante ainda</p>
+            <p className="text-brand-muted/50 text-xs font-mono mt-2">Compartilhe o link dos seus planos para começar</p>
+          </div>
+        ) : (
           <div className="flashlight-card rounded-[3rem] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="text-[10px] font-mono text-brand-muted uppercase tracking-[0.2em] font-black" style={{ background: 'var(--input-bg)', borderBottom: '1px solid var(--card-border)' }}>
-                    <th className="px-8 py-6 text-left">Cliente</th>
-                    <th className="px-8 py-6 text-left">Plano</th>
-                    <th className="px-8 py-6 text-right">Status</th>
+                  <tr className="text-[9px] font-mono text-brand-muted uppercase tracking-[0.2em] font-black" style={{ background: 'var(--input-bg)', borderBottom: '1px solid var(--card-border)' }}>
+                    <th className="px-8 py-5 text-left">Cliente</th>
+                    <th className="px-8 py-5 text-left">Contato</th>
+                    <th className="px-8 py-5 text-left">Plano</th>
+                    <th className="px-8 py-5 text-left">Valor</th>
+                    <th className="px-8 py-5 text-left">Data</th>
+                    <th className="px-8 py-5 text-right">Ação</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: 'var(--card-border)' }}>
-                  {clientSubs.map((sub, i) => (
-                    <tr key={sub.id || i} className="hover:bg-brand-accent/[0.02] transition-colors">
-                      <td className="px-8 py-6">
-                        <p className="font-display font-black text-brand-main uppercase text-sm tracking-tight">{sub.client_name || sub.clientName || 'Cliente'}</p>
+                  {clientSubs.map((sub) => (
+                    <tr key={sub.id} className="hover:bg-brand-accent/[0.02] transition-colors group">
+                      {/* Cliente */}
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center shrink-0">
+                            <span className="text-[11px] font-display font-black text-brand-accent">
+                              {(sub.clientName || 'C').charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <p className="font-display font-black text-brand-main uppercase text-sm tracking-tight leading-none">{sub.clientName || '—'}</p>
+                        </div>
                       </td>
-                      <td className="px-8 py-6">
-                        <span className="text-[9px] font-mono font-black text-brand-muted px-3 py-1.5 rounded-full uppercase tracking-widest" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
-                          {sub.plan_name || sub.planName || '-'}
+
+                      {/* Contato */}
+                      <td className="px-8 py-5">
+                        <p className="text-[11px] font-mono text-brand-muted">{sub.clientPhone || '—'}</p>
+                        {sub.clientEmail && <p className="text-[10px] font-mono text-brand-muted/50 mt-0.5">{sub.clientEmail}</p>}
+                      </td>
+
+                      {/* Plano */}
+                      <td className="px-8 py-5">
+                        <span className="text-[9px] font-mono font-black text-brand-accent px-3 py-1.5 rounded-full uppercase tracking-widest" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+                          {sub.planName || '—'}
                         </span>
                       </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="w-2 h-2 rounded-full bg-brand-success animate-pulse" />
-                          <span className="text-[10px] font-mono text-brand-success uppercase tracking-widest font-black">{sub.status || 'Ativo'}</span>
-                        </div>
+
+                      {/* Valor */}
+                      <td className="px-8 py-5">
+                        <p className="text-sm font-mono font-black text-brand-success">
+                          R$ {Number(sub.planPrice || 0).toFixed(2).replace('.', ',')}
+                          <span className="text-brand-muted font-normal text-[10px] ml-1">/mês</span>
+                        </p>
+                      </td>
+
+                      {/* Data */}
+                      <td className="px-8 py-5">
+                        <p className="text-[11px] font-mono text-brand-muted">
+                          {sub.subscribedAt
+                            ? new Date(sub.subscribedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+                            : '—'}
+                        </p>
+                      </td>
+
+                      {/* Cancelar */}
+                      <td className="px-8 py-5 text-right">
+                        <button
+                          onClick={async () => {
+                            if (!await confirm({ message: `Cancelar assinatura de ${sub.clientName}?`, danger: true, confirmLabel: 'Cancelar assinatura' })) return;
+                            await fetch('/api/payments/stripe', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                action: 'cancel-subscription',
+                                subscriptionId: sub.stripeSubscriptionId || (sub as any).data?.stripeSubscriptionId || null,
+                                clientSubscriptionId: sub.id,
+                              }),
+                            });
+                            setClientSubs(prev => prev.filter(s => s.id !== sub.id));
+                            setPlans(prev => prev.map(p => p.id === sub.planId ? { ...p, activeUsers: Math.max(0, (p.activeUsers || 0) - 1) } : p));
+                          }}
+                          className="text-[9px] font-mono font-black text-rose-500/50 hover:text-rose-400 uppercase tracking-widest px-3 py-1.5 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                          style={{ background: 'var(--input-bg)', border: '1px solid transparent' }}
+                          title="Cancelar assinatura"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Charge modal */}
+      {chargeModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl">
+          <div className="w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-[0_40px_120px_rgba(0,0,0,0.8)]"
+            style={{ background: 'var(--header-bg)', border: '1px solid var(--card-border)' }}>
+
+            {/* Header */}
+            <div className="px-8 pt-8 pb-6 flex items-start justify-between border-b" style={{ borderColor: 'var(--card-border)' }}>
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-2">
+                  <Zap size={10} className="text-brand-accent" />
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-brand-accent font-black">Gerar Cobrança</span>
+                </div>
+                <h2 className="text-2xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
+                  {chargeModal.name}<span className="text-brand-accent">.</span>
+                </h2>
+                <p className="text-brand-muted text-sm font-mono mt-1">R$ {chargeModal.price}/mês · Cartão recorrente</p>
+              </div>
+              <button onClick={() => setChargeModal(null)}
+                className="w-10 h-10 rounded-full flex items-center justify-center text-brand-muted hover:text-brand-main hover:rotate-90 transition-all"
+                style={{ background: 'var(--input-bg)' }}>
+                <XIcon size={16} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCharge} className="px-8 py-6 space-y-4">
+              {[
+                { key: 'name',  label: 'Nome do cliente',   placeholder: 'João Silva',      type: 'text',  required: true },
+                { key: 'phone', label: 'WhatsApp / Tel',    placeholder: '(11) 99999-9999', type: 'tel',   required: true },
+                { key: 'email', label: 'E-mail',            placeholder: 'joao@email.com',  type: 'email', required: false },
+                { key: 'taxId', label: 'CPF do cliente',    placeholder: '000.000.000-00',  type: 'text',  required: true },
+              ].map(f => (
+                <div key={f.key} className="space-y-1.5">
+                  <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">{f.label}</label>
+                  <input
+                    type={f.type}
+                    required={f.required}
+                    placeholder={f.placeholder}
+                    value={(chargeForm as any)[f.key]}
+                    onChange={e => setChargeForm(p => ({ ...p, [f.key]: e.target.value }))}
+                    className="w-full rounded-2xl px-4 py-3 text-brand-main font-medium outline-none text-sm transition-all"
+                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
+                  />
+                </div>
+              ))}
+
+              <button type="submit" disabled={charging}
+                className="w-full py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[12px] uppercase tracking-[0.2em] shadow-[0_0_25px_rgba(0,112,255,0.3)] hover:opacity-90 transition-all disabled:opacity-40 flex items-center justify-center gap-3 mt-2">
+                {charging
+                  ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
+                  : <><Zap size={15} /> Abrir Checkout <ArrowRight size={15} /></>}
+              </button>
+            </form>
           </div>
         </div>
       )}

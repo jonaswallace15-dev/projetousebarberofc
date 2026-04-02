@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Trash2, Edit3, MessageCircle, Star, X } from 'lucide-react';
 import { ShimmerButton } from '@/components/ui/shimmer-button';
 import { useAuth } from '@/components/AuthProvider';
+import { useUI } from '@/components/UIProvider';
 import { supabaseService } from '@/services/supabaseService';
 import type { Client } from '@/types';
 
@@ -11,6 +12,7 @@ const emptyForm = { id: '', name: '', phone: '', email: '', instagram: '', birth
 
 export default function ClientsPage() {
   const { user } = useAuth();
+  const { toast, confirm } = useUI();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,12 +43,12 @@ export default function ClientsPage() {
       const saved = await supabaseService.upsertClient(payload);
       setClients(prev => form.id ? prev.map(c => c.id === form.id ? { ...c, ...saved } : c) : [{ ...saved, lastVisit: '-', totalSpent: 0, frequency: 0, tag: 'Novo' as const }, ...prev]);
       setModalOpen(false);
-    } catch (err: any) { alert(err.message || 'Erro ao salvar cliente'); }
+    } catch (err: any) { toast(err.message || 'Erro ao salvar cliente', 'error'); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Deseja deletar este cliente permanentemente?')) return;
+    if (!await confirm({ message: 'Deseja deletar este cliente permanentemente?', danger: true, confirmLabel: 'Deletar' })) return;
     await supabaseService.deleteClient(id);
     setClients(prev => prev.filter(c => c.id !== id));
   };

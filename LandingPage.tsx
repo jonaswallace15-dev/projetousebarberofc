@@ -1,6 +1,4 @@
-'use client';
 
-import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import {
     ArrowRight,
@@ -29,12 +27,13 @@ import {
     Menu,
     X
 } from 'lucide-react';
-import { ShimmerButton } from '@/components/ui/shimmer-button';
+import { ShimmerButton } from '../components/ui/shimmer-button';
 
+interface LandingPageProps {
+    onLoginClick: () => void;
+}
 
-
-export default function LandingPage() {
-    const router = useRouter();
+export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [currentSlide, setCurrentSlide] = useState(0);
@@ -280,7 +279,7 @@ export default function LandingPage() {
 
                     <div className="flex items-center gap-4 md:gap-8">
                         <ShimmerButton 
-                            onClick={() => router.push("/login")} 
+                            onClick={onLoginClick} 
                             background="rgba(0, 102, 255, 0.1)"
                             shimmerColor="var(--brand-accent)"
                             className="hidden md:flex w-48 text-[10px] tracking-widest border-brand-accent/20 text-brand-main shadow-none" 
@@ -338,7 +337,7 @@ export default function LandingPage() {
                 {/* Footer com Login CTA */}
                 <div className="p-8 border-t border-white/10">
                     <button
-                        onClick={() => { setIsMenuOpen(false); router.push("/login"); }}
+                        onClick={() => { setIsMenuOpen(false); onLoginClick(); }}
                         className="w-full bg-brand-accent py-5 rounded-[2rem] text-[10px] font-mono font-black uppercase tracking-[0.3em] text-white shadow-[0_15px_30px_rgba(0,112,255,0.4)] active:scale-95 transition-all"
                     >
                         Entrar na Área
@@ -399,7 +398,7 @@ export default function LandingPage() {
 
                         <div className="mt-16 flex flex-col sm:flex-row items-center justify-center gap-8">
                             <ShimmerButton
-                                onClick={() => router.push("/login")}
+                                onClick={onLoginClick}
                                 background="var(--brand-accent)"
                                 shimmerColor="#ffffff"
                                 className="w-72 py-4 shadow-[0_20px_50px_rgba(0,112,255,0.4)] text-xs tracking-widest text-white border-brand-accent/50"
@@ -1012,157 +1011,61 @@ export default function LandingPage() {
                                     </button>
                                     <span className={`text-[10px] font-mono tracking-widest uppercase px-4 py-2 rounded-full transition-all duration-300 ${billingCycle === 'yearly' ? 'text-white bg-brand-accent font-bold' : 'text-brand-muted hover:text-white'}`}>ANUAL</span>
                                 </div>
-                                <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                                    <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest font-bold">Até 2 meses grátis no anual</span>
+                                <div className="px-4 py-2 bg-brand-accent/10 border border-brand-accent/20 rounded-full flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse"></span>
+                                    <span className="text-[9px] font-mono text-brand-accent uppercase tracking-widest font-bold">ECONOMIA_CONSIDERÁVEL</span>
                                 </div>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 md:gap-14 items-stretch max-w-7xl mx-auto">
                             {[
-                                {
-                                    name: 'Start',
-                                    tag: '🟢 ENTRADA',
-                                    tagColor: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5',
-                                    for: 'Barbeiro iniciante ou barbearia pequena',
-                                    monthly: '29', yearly: '290',
-                                    desc: 'Porta de entrada para quem quer profissionalizar o negócio sem complicação.',
-                                    features: [
-                                        '1 barbeiro incluído',
-                                        'Agenda online completa',
-                                        'Página de agendamento exclusiva',
-                                        'Controle básico de clientes',
-                                        'Notificações por WhatsApp',
-                                        'Link público de agendamento',
-                                        'Suporte por e-mail',
-                                    ],
-                                    accent: false, popular: false,
-                                    cta: 'Começar Agora',
-                                },
-                                {
-                                    name: 'Pro',
-                                    tag: '🔵 MAIS VENDIDO',
-                                    tagColor: 'text-brand-accent border-brand-accent/30 bg-brand-accent/5',
-                                    for: 'Barbearia em crescimento com equipe',
-                                    monthly: '49', yearly: '490',
-                                    desc: 'O plano que a maioria das barbearias precisa. Tudo que importa, sem excessos.',
-                                    features: [
-                                        'Até 3 barbeiros',
-                                        'Agenda completa + bloqueios',
-                                        'Gestão avançada de clientes',
-                                        'Relatórios básicos de desempenho',
-                                        'Confirmação automática',
-                                        'Integração WhatsApp',
-                                        'Controle financeiro simples',
-                                    ],
-                                    accent: true, popular: true,
-                                    cta: 'Assinar Pro',
-                                },
-                                {
-                                    name: 'Premium',
-                                    tag: '🟣 LUCRO REAL',
-                                    tagColor: 'text-purple-400 border-purple-500/30 bg-purple-500/5',
-                                    for: 'Barbearia que já fatura e quer escalar',
-                                    monthly: '79', yearly: '790',
-                                    desc: 'Para quem já vê valor e quer dominar a operação por completo.',
-                                    features: [
-                                        'Barbeiros ilimitados',
-                                        'Relatórios avançados',
-                                        'Controle financeiro completo',
-                                        'Gestão de comissão da equipe',
-                                        'Automações (lembrete + reativação)',
-                                        'Personalização da página',
-                                        'Suporte prioritário dedicado',
-                                    ],
-                                    accent: false, popular: false,
-                                    cta: 'Assinar Premium',
-                                },
+                                { name: 'Essencial', monthly: '29', yearly: '290', desc: 'Solução completa para barbeiros que buscam elevar sua marca pessoal.', features: ['1 barbeiro', 'Agenda online ilimitada', 'Link exclusivo nexus', 'Clientes ilimitados', 'Bloqueio de horários', 'Página profissional alpha', 'Suporte padrão node'], accent: false },
+                                { name: 'Profissional', monthly: '49', yearly: '490', popular: true, desc: 'Acelerador de crescimento para barbearias em expansão tecnológica.', features: ['Até 3 barbeiros', 'Pagamentos via Pix integrados', 'Confirmação via IA', 'Lembretes automáticos', 'Relatórios financeiros', 'Dashboard de produtividade', 'Suporte prioritário elite'], accent: true },
+                                { name: 'Elite', monthly: '99', yearly: '990', desc: 'Potencial total para operações complexas e gestão de múltiplos talentos.', features: ['Barbeiros ilimitados', 'Controle financeiro total', 'Relatórios de previsão', 'Gestão granular de equipe', 'Prioridade máxima nexus', 'Acesso beta a recursos', 'Consultoria de implementação'], accent: false }
                             ].map((plan, i) => (
                                 <div key={i} className="relative group">
                                     {plan.popular && (
-                                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-8 py-2 bg-brand-accent rounded-full text-[10px] font-mono font-black text-white uppercase tracking-[0.2em] z-30 shadow-[0_0_40px_var(--brand-accent-glow)] border border-white/20 whitespace-nowrap">
-                                            80% das vendas
+                                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-8 py-2 bg-brand-accent rounded-full text-[10px] font-mono font-black text-white uppercase tracking-[0.2em] z-30 shadow-[0_0_40px_var(--brand-accent-glow)] border border-white/20">
+                                            MAIS POPULAR
                                         </div>
                                     )}
                                     <div className={`reveal flex flex-col h-full p-10 md:p-14 rounded-[3rem] md:rounded-[4rem] border transition-all duration-700 ${plan.accent ? 'border-brand-accent/50 bg-brand-accent/[0.08] lg:scale-105 z-10 shadow-[0_40px_100px_rgba(0,102,255,0.15)]' : 'border-white/10 bg-white/[0.03] hover:border-white/20'}`} style={{ transitionDelay: `${i * 150}ms` }}>
-                                        <div className="mb-10">
-                                            {/* Tag colorida */}
-                                            <span className={`inline-flex items-center gap-1.5 text-[9px] font-mono font-black uppercase tracking-[0.35em] px-3 py-1.5 rounded-full border mb-5 ${plan.tagColor}`}>
-                                                {plan.tag}
-                                            </span>
-
-                                            {/* Nome do plano */}
-                                            <h3 className="text-4xl md:text-5xl font-display font-black text-white uppercase tracking-tighter leading-none mb-2">{plan.name}</h3>
-
-                                            {/* Para quem */}
-                                            <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest mb-6 opacity-60">{plan.for}</p>
-
-                                            {/* Preço */}
-                                            <div className="flex items-baseline gap-2">
-                                                <span className="text-xl font-light text-brand-muted">R$</span>
+                                        <div className="mb-12">
+                                            <span className="text-[10px] font-mono text-brand-accent uppercase tracking-[0.5em] mb-4 block">Módulo: {plan.name}</span>
+                                            <div className="flex items-baseline gap-3">
+                                                <span className="text-3xl font-light text-brand-muted">R$</span>
                                                 <span className="text-6xl md:text-7xl font-display font-black text-white leading-none">{billingCycle === 'monthly' ? plan.monthly : plan.yearly}</span>
-                                                <div className="flex flex-col ml-1">
-                                                    <span className="text-xs text-brand-muted uppercase font-mono tracking-widest">/{billingCycle === 'monthly' ? 'mês' : 'ano'}</span>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm text-brand-muted uppercase font-mono tracking-widest">/{billingCycle === 'monthly' ? 'mês' : 'ano'}</span>
                                                 </div>
                                             </div>
-
                                             {billingCycle === 'yearly' && (
-                                                <p className="mt-3 text-[11px] font-mono text-emerald-400 uppercase tracking-widest font-black inline-flex items-center gap-2">
-                                                    <CheckCircle2 size={10} /> Economia de R$ {parseInt(plan.monthly) * 12 - parseInt(plan.yearly)} no ano
+                                                <p className="mt-4 text-[11px] font-mono text-emerald-400 uppercase tracking-widest font-black inline-flex items-center gap-2">
+                                                    <ChevronRight size={10} /> ECONOMIA R$ {parseInt(plan.monthly) * 12 - parseInt(plan.yearly)}
                                                 </p>
                                             )}
-
-                                            <p className="mt-6 text-xs md:text-sm text-brand-muted leading-relaxed opacity-80 min-h-[44px]">{plan.desc}</p>
+                                            <p className="mt-10 text-xs md:text-base text-brand-muted leading-relaxed italic font-light opacity-90 min-h-[60px]">{plan.desc}</p>
                                         </div>
 
-                                        {/* Divisor */}
-                                        <div className={`w-full h-px mb-8 ${plan.accent ? 'bg-brand-accent/20' : 'bg-white/5'}`} />
-
-                                        <div className="space-y-4 mb-12 flex-1">
+                                        <div className="space-y-5 md:space-y-6 mb-14 flex-1">
                                             {plan.features.map((f, j) => (
-                                                <div key={j} className="flex items-center gap-3 group/item">
-                                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${plan.accent ? 'bg-brand-accent/15 border border-brand-accent/30' : 'bg-white/5 border border-white/10'}`}>
-                                                        <iconify-icon icon="solar:check-bold" class={`text-[10px] ${plan.accent ? 'text-brand-accent' : 'text-brand-muted/50'} group-hover/item:text-brand-accent transition-all duration-300`}> </iconify-icon>
-                                                    </div>
-                                                    <span className="text-[11px] md:text-xs font-mono text-brand-muted group-hover/item:text-brand-main transition-colors leading-tight">{f}</span>
+                                                <div key={j} className="flex items-start gap-4 group/item">
+                                                    <iconify-icon icon="solar:check-circle-bold" class={`text-xl mt-0.5 ${plan.accent ? 'text-brand-accent' : 'text-brand-muted/30'} group-hover/item:text-brand-accent transition-all duration-300`}> </iconify-icon>
+                                                    <span className="text-[11px] md:text-xs font-mono text-brand-muted group-hover/item:text-brand-main transition-colors uppercase tracking-[0.05em] leading-tight">{f}</span>
                                                 </div>
                                             ))}
                                         </div>
 
                                         <button
-                                            onClick={() => router.push("/login")}
-                                            className={`w-full py-5 rounded-2xl md:rounded-3xl font-display font-black text-[13px] md:text-[14px] uppercase tracking-[0.2em] transition-all duration-500 ${plan.accent ? 'bg-brand-accent text-white shadow-[0_20px_60px_rgba(0,102,255,0.35)] hover:-translate-y-1 hover:brightness-110' : 'bg-white/5 text-white border border-white/10 hover:bg-white/10 hover:border-white/20'}`}
+                                            onClick={onLoginClick}
+                                            className={`w-full py-6 rounded-2xl md:rounded-3xl font-display font-black text-[13px] md:text-[15px] uppercase tracking-[0.2em] transition-all duration-500 shadow-xl ${plan.accent ? 'bg-brand-accent text-white shadow-[0_20px_60px_rgba(0,102,255,0.4)] hover:-translate-y-1 hover:brightness-110' : 'bg-white/5 text-white border border-white/10 hover:bg-white/10'}`}
                                         >
-                                            {plan.cta}
+                                            Ativar Node {plan.name}
                                         </button>
                                     </div>
                                 </div>
                             ))}
-                        </div>
-
-                        {/* Destaque Plano Anual */}
-                        <div className="mt-16 md:mt-24 p-8 md:p-12 rounded-[3rem] border border-emerald-500/20 bg-emerald-500/[0.03] flex flex-col md:flex-row items-center justify-between gap-8 max-w-7xl mx-auto">
-                            <div className="flex items-center gap-6">
-                                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                                    <iconify-icon icon="solar:calendar-bold-duotone" class="text-2xl text-emerald-400"></iconify-icon>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-mono text-emerald-400 uppercase tracking-[0.4em] font-black mb-1">Plano Anual — Arma Secreta</p>
-                                    <p className="text-xl md:text-2xl font-display font-black text-white uppercase tracking-tight">Pague menos. Fique mais. Cresça mais.</p>
-                                    <p className="text-xs font-mono text-brand-muted mt-1">Pro anual: R$ 490/ano · Premium anual: R$ 790/ano</p>
-                                </div>
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-4 shrink-0">
-                                <div className="px-5 py-3 rounded-2xl border border-white/10 text-center">
-                                    <p className="text-[9px] font-mono text-brand-muted uppercase tracking-widest">Pro — Economia</p>
-                                    <p className="text-2xl font-display font-black text-emerald-400">R$ 98</p>
-                                </div>
-                                <div className="px-5 py-3 rounded-2xl border border-white/10 text-center">
-                                    <p className="text-[9px] font-mono text-brand-muted uppercase tracking-widest">Premium — Economia</p>
-                                    <p className="text-2xl font-display font-black text-emerald-400">R$ 158</p>
-                                </div>
-                            </div>
                         </div>
 
                         <div className="mt-24 md:mt-32 border-t border-white/5 pt-20 overflow-hidden relative">
@@ -1176,10 +1079,10 @@ export default function LandingPage() {
                                     <React.Fragment key={groupIdx}>
                                         {[
                                             { icon: 'solar:calendar-minimalistic-bold', text: '7 dias grátis' },
-                                            { icon: 'solar:close-circle-bold', text: 'Cancele quando quiser' },
-                                            { icon: 'solar:shield-check-bold', text: 'Dados protegidos' },
-                                            { icon: 'solar:refresh-bold', text: 'Atualizações inclusas' },
-                                            { icon: 'solar:crown-bold', text: 'Suporte em português' }
+                                            { icon: 'solar:close-circle-bold', text: 'Sem fidelidade' },
+                                            { icon: 'solar:shield-check-bold', text: 'Segurança Total' },
+                                            { icon: 'solar:refresh-bold', text: 'Updates Alpha' },
+                                            { icon: 'solar:crown-bold', text: 'Acesso Vitalic' }
                                         ].map((item, i) => (
                                             <div key={`${groupIdx}-${i}`} className="flex flex-col items-center gap-4 text-center shrink-0 w-40">
                                                 <iconify-icon icon={item.icon} class="text-3xl text-brand-accent opacity-50 transition-opacity"></iconify-icon>
@@ -1194,10 +1097,10 @@ export default function LandingPage() {
                             <div className="hidden md:grid md:grid-cols-5 gap-12 w-full">
                                 {[
                                     { icon: 'solar:calendar-minimalistic-bold', text: '7 dias grátis' },
-                                    { icon: 'solar:close-circle-bold', text: 'Cancele quando quiser' },
-                                    { icon: 'solar:shield-check-bold', text: 'Dados protegidos' },
-                                    { icon: 'solar:refresh-bold', text: 'Atualizações inclusas' },
-                                    { icon: 'solar:crown-bold', text: 'Suporte em português' }
+                                    { icon: 'solar:close-circle-bold', text: 'Sem fidelidade' },
+                                    { icon: 'solar:shield-check-bold', text: 'Segurança Total' },
+                                    { icon: 'solar:refresh-bold', text: 'Updates Alpha' },
+                                    { icon: 'solar:crown-bold', text: 'Acesso Vitalic' }
                                 ].map((item, i) => (
                                     <div key={i} className="flex flex-col items-center gap-4 text-center group hover:scale-110 transition-transform">
                                         <iconify-icon icon={item.icon} class="text-3xl text-brand-accent opacity-50 group-hover:opacity-100 transition-opacity"></iconify-icon>
@@ -1227,7 +1130,7 @@ export default function LandingPage() {
                                 A conexão final que seu negócio aguardava está a um comando de distância.
                             </p>
                             <button
-                                onClick={() => router.push("/login")}
+                                onClick={onLoginClick}
                                 className="btn-ultra group inline-flex items-center justify-center gap-6 px-10 py-5 md:px-16 md:py-8 w-full sm:w-auto reveal-up"
                                 style={{ transitionDelay: '0.6s' }}
                             >
