@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { signIn, getSession } from 'next-auth/react';
 import { Scissors, Mail, Lock, Eye, EyeOff, Sparkles, AlertCircle, CheckCircle2, User, Smartphone } from 'lucide-react';
 import { ShimmerButton } from '@/components/ui/shimmer-button';
@@ -9,6 +9,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 type AuthMode = 'login' | 'register' | 'forgot';
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -282,3 +290,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
