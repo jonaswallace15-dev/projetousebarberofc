@@ -1,0 +1,130 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+const ASAAS_URL = process.env.ASAAS_URL || 'https://api.asaas.com/v3';
+const ASAAS_KEY = process.env.ASAAS_API_KEY
+  ? (process.env.ASAAS_API_KEY.startsWith('$') ? process.env.ASAAS_API_KEY : `$${process.env.ASAAS_API_KEY}`)
+  : '';
+
+function asaasHeaders() {
+  return { 'Content-Type': 'application/json', 'access_token': ASAAS_KEY };
+}
+
+async function asaasJson(res: Response) {
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { throw new Error(`Asaas error (${res.status}): ${text.slice(0, 200)}`); }
+}
+
+function nextDueDate() {
+  const d = new Date();
+  d.setDate(d.getDate() + 10);
+  return d.toISOString().split('T')[0];
+}
+
+async function findOrCreateAsaasCustomer(name: string, cpfCnpj: string, email: string, phone: string): Promise<string> {
+  const digits = cpfCnpj.replace(/\D/g, '');
+  const search = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${digits}`, { headers: asaasHeaders() });
+  const found = await asaasJson(search);
+  if (found.data?.length > 0) return found.data[0].id;
+  const create = await fetch(`${ASAAS_URL}/customers`, {
+    method: 'POST',
+    headers: asaasHeaders(),
+    body: JSON.stringify({ name, cpfCnpj: digits, email: email || undefined, phone: phone || undefined }),
+  });
+  const created = await asaasJson(create);
+  if (!create.ok || created.errors?.length) throw new Error(created.errors?.[0]?.description || 'Erro ao criar cliente');
+  return created.id;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { action } = body;
+
+    // ── Asaas Subscription Checkout ────────────────────────────────────
+    if (action === 'create-asaas-checkout') {
+      const { planId, clientName, clientEmail, clientPhone, clientCpf } = body;
+
+      if (!clientCpf || clientCpf.replace(/\D/g, '').length !== 11) {
+        return NextResponse.json({ error: 'CPF inválido' }, { status: 400 });
+      }
+
+      const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
+      if (!plan) return NextResponse.json({ error: 'Plano não encontrado' }, { status: 404 });
+
+      const customerId = await findOrCreateAsaasCustomer(
+        clientName,
+        clientCpf,
+        clientEmail || `${clientPhone}@semmail.com`,
+        clientPhone || '',
+      );
+
+      const subRes = await fetch(`${ASAAS_URL}/subscriptions`, {
+        method: 'POST',
+        headers: asaasHeaders(),
+        body: JSON.stringify({
+          customer: customerId,
+          billingType: 'CREDIT_CARD',
+          value: plan.price,
+          nextDueDate: nextDueDate(),
+          cycle: 'MONTHLY',
+          description: plan.name,
+          externalReference: `SUB|${plan.id}|${plan.userId}|${(clientPhone || '').replace(/\D/g, '')}`,
+        }),
+      });
+      const sub = await asaasJson(subRes);
+
+      if (!subRes.ok || sub.errors?.length) {
+        const msg = sub.errors?.[0]?.description || 'Erro ao criar assinatura';
+        return NextResponse.json({ error: msg }, { status: 400 });
+      }
+
+      // Busca a primeira cobrança gerada automaticamente pela assinatura
+      const paymentsRes = await fetch(`${ASAAS_URL}/payments?subscription=${sub.id}`, {
+        headers: asaasHeaders(),
+      });
+      const paymentsData = await asaasJson(paymentsRes);
+      const firstPayment = paymentsData.data?.[0];
+      const paymentUrl = firstPayment?.invoiceUrl || sub.paymentLink;
+
+      if (!paymentUrl) {
+        return NextResponse.json({ error: 'Não foi possível gerar o link de pagamento. Tente novamente.' }, { status: 500 });
+      }
+
+      return NextResponse.json({ url: paymentUrl });
+    }
+
+    // ── Cancelar Assinatura ────────────────────────────────────────────
+    if (action === 'cancel-subscription') {
+      const { asaasSubscriptionId, clientSubscriptionId } = body;
+
+      if (asaasSubscriptionId) {
+        await fetch(`${ASAAS_URL}/subscriptions/${asaasSubscriptionId}`, {
+          method: 'DELETE',
+          headers: asaasHeaders(),
+        });
+      }
+
+      if (clientSubscriptionId) {
+        const sub = await prisma.clientSubscription.findUnique({
+          where: { id: clientSubscriptionId },
+          select: { planId: true },
+        });
+        await prisma.clientSubscription.delete({ where: { id: clientSubscriptionId } });
+        if (sub?.planId) {
+          await prisma.subscriptionPlan.update({
+            where: { id: sub.planId },
+            data: { activeUsers: { decrement: 1 } },
+          });
+        }
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+  } catch (err: any) {
+    console.error('[checkout]', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

@@ -10,7 +10,7 @@ datasource db {
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  password  String
+  password  String?
   name      String?
   role      String   @default("Proprietário")
   createdAt DateTime @default(now()) @map("created_at")
@@ -33,6 +33,7 @@ model User {
 model Barber {
   id             String  @id @default(cuid())
   userId         String  @map("user_id")
+  accountId      String? @unique @map("account_id")
   name           String
   role           String  @default("Barbeiro")
   commission     Float   @default(50)
@@ -45,6 +46,18 @@ model Barber {
   wallets Wallet[]
 
   @@map("barbeiros")
+}
+
+model InviteToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  barberId  String   @map("barber_id")
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("invite_tokens")
 }
 
 model Client {
@@ -90,11 +103,13 @@ model Appointment {
   clientName  String @map("client_name")
   barberId    String @map("barber_id")
   barberName  String @map("barber_name")
-  serviceId   String @map("service_id")
-  serviceName String @map("service_name")
+  serviceId   String  @map("service_id")
+  serviceName String  @map("service_name")
+  productId   String? @map("product_id")
+  productName String? @map("product_name")
   time        String
   date        String
-  status      String @default("Confirmado")
+  status      String  @default("Confirmado")
   price       Float
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

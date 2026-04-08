@@ -6,7 +6,46 @@ export async function GET() {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const role = (session.user as any).role;
+
   try {
+    // Barbeiro: retorna comissões calculadas com base nos agendamentos dele
+    if (role === 'Barbeiro') {
+      const barber = await prisma.barber.findFirst({
+        where: { accountId: session.user.id },
+        select: { id: true, commission: true, commissionType: true, userId: true },
+      });
+      if (!barber) return NextResponse.json([]);
+
+      const appointments = await prisma.appointment.findMany({
+        where: { barberId: barber.id, status: 'Confirmado' },
+        orderBy: { date: 'desc' },
+      });
+
+      const result = appointments.map((a) => {
+        const gross = a.price || 0;
+        const earned = barber.commissionType === 'fixed'
+          ? barber.commission
+          : (gross * barber.commission) / 100;
+        return {
+          id: a.id,
+          user_id: barber.userId,
+          appointment_id: a.id,
+          type: 'Entrada',
+          category: 'Comissão',
+          amount: earned,
+          date: a.date,
+          method: 'Pix',
+          description: `${a.serviceName} — ${a.clientName}`,
+          _gross: gross,
+          _commissionRate: barber.commissionType === 'fixed' ? `R$${barber.commission}` : `${barber.commission}%`,
+        };
+      });
+
+      return NextResponse.json(result);
+    }
+
+    // Proprietário: retorna todas as transações dele
     const transactions = await prisma.financeTransaction.findMany({
       where: { userId: session.user.id },
       orderBy: { date: 'desc' },

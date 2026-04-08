@@ -53,6 +53,57 @@ export default function DashboardPage() {
 
   const totalRevenue = transactions.filter(t => t.type === 'Entrada').reduce((sum, t) => sum + (t.amount || 0), 0);
 
+  const revenueTrend = useMemo(() => {
+    const now = new Date();
+    const sum = (arr: FinanceTransaction[]) =>
+      arr.filter(t => t.type === 'Entrada').reduce((s, t) => s + (t.amount || 0), 0);
+    const thisMonth = transactions.filter(t => {
+      const d = new Date(t.date + 'T00:00:00');
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const prevMonth = transactions.filter(t => {
+      const d = new Date(t.date + 'T00:00:00');
+      const pm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return d.getMonth() === pm.getMonth() && d.getFullYear() === pm.getFullYear();
+    });
+    const curr = sum(thisMonth);
+    const prev = sum(prevMonth);
+    if (!prev) return 0;
+    return Math.round(((curr - prev) / prev) * 1000) / 10;
+  }, [transactions]);
+
+  const conversionRate = useMemo(() => {
+    if (!appointments.length) return 0;
+    const converted = appointments.filter(a =>
+      a.status === 'Finalizado' || a.status === 'Confirmado' || a.status === 'Em andamento' || a.status === 'Pago'
+    ).length;
+    return Math.round((converted / appointments.length) * 100);
+  }, [appointments]);
+
+  const conversionTrend = useMemo(() => {
+    if (!appointments.length) return 0;
+    const now = new Date();
+    const isConverted = (a: Appointment) =>
+      a.status === 'Finalizado' || a.status === 'Confirmado' || a.status === 'Em andamento' || a.status === 'Pago';
+    const rate = (arr: Appointment[]) =>
+      arr.length ? (arr.filter(isConverted).length / arr.length) * 100 : 0;
+
+    const thisMonth = appointments.filter(a => {
+      const d = new Date(a.date + 'T00:00:00');
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    });
+    const prevMonth = appointments.filter(a => {
+      const d = new Date(a.date + 'T00:00:00');
+      const pm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return d.getMonth() === pm.getMonth() && d.getFullYear() === pm.getFullYear();
+    });
+
+    const curr = rate(thisMonth);
+    const prev = rate(prevMonth);
+    if (!prev) return 0;
+    return Math.round((curr - prev) * 10) / 10;
+  }, [appointments]);
+
   const chartData = useMemo(() => {
     const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
     const data = days.map(name => ({ name, faturamento: 0 }));
@@ -100,10 +151,6 @@ export default function DashboardPage() {
       {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-4">
-            <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse shadow-[0_0_10px_#0070FF]"></span>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-brand-accent font-bold">Intelligence System Active</span>
-          </div>
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
             Dashboard<span className="text-brand-accent">.</span>
           </h1>
@@ -111,25 +158,27 @@ export default function DashboardPage() {
             {isBarbeiro ? 'Acompanhe seu desempenho e próximos atendimentos de elite.' : 'Análise em tempo real e controle total da sua operação premium.'}
           </p>
         </div>
-        <div className="hidden lg:flex items-center gap-8 pb-2">
-          <div className="flex flex-col items-end">
-            <span className="text-3xl font-display font-black text-brand-main">R$ {totalRevenue.toLocaleString('pt-BR')}</span>
-            <span className="text-[9px] font-mono uppercase text-brand-muted tracking-[0.2em]">Fluxo de Caixa</span>
+        {!isBarbeiro && (
+          <div className="hidden lg:flex items-center gap-8 pb-2">
+            <div className="flex flex-col items-end">
+              <span className="text-3xl font-display font-black text-brand-main">R$ {totalRevenue.toLocaleString('pt-BR')}</span>
+              <span className="text-[9px] font-mono uppercase text-brand-muted tracking-[0.2em]">Fluxo de Caixa</span>
+            </div>
+            <div className="h-10 w-px bg-brand-border"></div>
+            <div className="flex flex-col items-end">
+              <span className="text-3xl font-display font-black text-brand-accent">{appointments.length}</span>
+              <span className="text-[9px] font-mono uppercase text-brand-muted tracking-[0.2em]">Total Ciclos</span>
+            </div>
           </div>
-          <div className="h-10 w-px bg-brand-border"></div>
-          <div className="flex flex-col items-end">
-            <span className="text-3xl font-display font-black text-brand-accent">{appointments.length}</span>
-            <span className="text-[9px] font-mono uppercase text-brand-muted tracking-[0.2em]">Total Ciclos</span>
-          </div>
-        </div>
+        )}
       </header>
 
       {/* STATS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-        <StatCard delay={100} title={isBarbeiro ? "Comissão Acum." : "Receita"} value={`R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} trend={12.5} icon={<DollarSign size={20} />} />
+        <StatCard delay={100} title={isBarbeiro ? "Comissão Acum." : "Receita"} value={`R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} trend={revenueTrend} icon={<DollarSign size={20} />} />
         <StatCard delay={200} title={isBarbeiro ? "Atendimentos" : "Clientes"} value={isBarbeiro ? appointments.length : clients.length} icon={isBarbeiro ? <Scissors size={20} /> : <Users size={20} />} />
         <StatCard delay={300} title="Hoje" value={todayAppointments.length} icon={<Activity size={20} />} />
-        <StatCard delay={400} title="Conversão" value="94%" trend={3.2} icon={<TrendingUp size={20} />} />
+        <StatCard delay={400} title="Conversão" value={`${conversionRate}%`} trend={conversionTrend} icon={<TrendingUp size={20} />} />
       </div>
 
       {/* ELITE AGENDA */}
@@ -197,7 +246,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {!isBarbeiro && <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* CHART */}
         <div className="lg:col-span-2 flashlight-card p-6 md:p-8 lg:p-12 rounded-[2rem] lg:rounded-[3.5rem] group">
           <div className="flex justify-between items-center mb-12">
@@ -262,7 +311,7 @@ export default function DashboardPage() {
             Full Analytics →
           </ShimmerButton>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

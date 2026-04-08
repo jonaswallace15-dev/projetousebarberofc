@@ -420,13 +420,35 @@ function BarberModal({
 
 export default function TeamPage() {
   const { user } = useAuth();
-  const { confirm } = useUI();
+  const { confirm, toast } = useUI();
   const [team, setTeam] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<Partial<Barber>>({ ...emptyBarber });
   const [schedule, setSchedule] = useState<BarberSchedule>(defaultSchedule);
   const [saving, setSaving] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+
+  const handleInvite = async (barberId: string) => {
+    setInvitingId(barberId);
+    try {
+      const res = await fetch('/api/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ barberId }),
+      });
+      const data = await res.json();
+      if (data.error) { toast(data.error, 'error'); return; }
+      setInviteLink(data.url);
+      navigator.clipboard.writeText(data.url).catch(() => {});
+      toast('Link de convite copiado!', 'success');
+    } catch {
+      toast('Erro ao gerar convite.', 'error');
+    } finally {
+      setInvitingId(null);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -480,10 +502,6 @@ export default function TeamPage() {
     <div className="space-y-10 pb-20">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-4">
-            <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse shadow-[0_0_10px_#0070FF]" />
-            <span className="text-[10px] font-mono uppercase tracking-widest text-brand-accent font-bold">Team Performance Active</span>
-          </div>
           <h1 className="text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
             Equipe<span className="text-brand-accent">.</span>
           </h1>
@@ -591,8 +609,19 @@ export default function TeamPage() {
                 </div>
               </div>
 
-              <div className="p-6 flex items-center justify-between mt-auto" style={{ background: 'var(--input-bg)', borderTop: '1px solid var(--card-border)' }}>
-                <span className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Membro da equipe</span>
+              <div className="p-6 flex items-center justify-between mt-auto gap-2" style={{ background: 'var(--input-bg)', borderTop: '1px solid var(--card-border)' }}>
+                {!isOwnerCard ? (
+                  <button
+                    onClick={() => handleInvite(barber.id)}
+                    disabled={invitingId === barber.id}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[9px] font-mono font-black uppercase tracking-widest text-brand-accent border border-brand-accent/20 hover:bg-brand-accent/10 transition-all disabled:opacity-50"
+                    style={{ background: 'var(--input-bg)' }}
+                  >
+                    {invitingId === barber.id ? '...' : '🔗 Convidar'}
+                  </button>
+                ) : (
+                  <span className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Proprietário</span>
+                )}
                 <button
                   onClick={() => openModal(barber)}
                   className="w-11 h-11 rounded-xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center text-brand-accent hover:bg-brand-accent transition-all group/btn"
@@ -631,6 +660,41 @@ export default function TeamPage() {
           onSave={handleSave}
           onDelete={handleDelete}
         />
+      )}
+
+      {inviteLink && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
+          <div className="flashlight-card w-full max-w-md rounded-[3rem] overflow-hidden" style={{ background: 'var(--header-bg)', border: '1px solid var(--card-border)' }}>
+            <div className="px-10 pt-10 pb-6 flex justify-between items-start">
+              <div>
+                <span className="text-[10px] font-mono font-black text-brand-accent uppercase tracking-widest mb-3 block">Link de Convite</span>
+                <h2 className="text-2xl font-display font-black text-brand-main uppercase">Convidar Barbeiro<span className="text-brand-accent">.</span></h2>
+              </div>
+              <button onClick={() => setInviteLink(null)} className="w-12 h-12 rounded-full flex items-center justify-center text-brand-muted hover:text-brand-main transition-all" style={{ background: 'var(--input-bg)' }}>✕</button>
+            </div>
+            <div className="px-10 pb-10 space-y-4">
+              <p className="text-brand-muted text-xs font-mono">Envie este link para o barbeiro. Ele expira em 7 dias.</p>
+              <div className="p-4 rounded-2xl break-all text-[11px] font-mono text-brand-accent" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+                {inviteLink}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { navigator.clipboard.writeText(inviteLink); toast('Copiado!', 'success'); }}
+                  className="flex-1 py-3 rounded-2xl text-[11px] font-mono font-black uppercase tracking-widest bg-brand-accent text-white hover:opacity-90 transition-all"
+                >
+                  Copiar Link
+                </button>
+                <button
+                  onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent('Você foi convidado para a equipe! Acesse: ' + inviteLink)}`, '_blank'); }}
+                  className="flex-1 py-3 rounded-2xl text-[11px] font-mono font-black uppercase tracking-widest text-brand-success border border-brand-success/20 hover:bg-brand-success/10 transition-all"
+                  style={{ background: 'var(--input-bg)' }}
+                >
+                  WhatsApp
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

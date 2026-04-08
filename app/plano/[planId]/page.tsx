@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, Crown, Loader2, ArrowRight, CheckCircle2, CreditCard } from 'lucide-react';
 import { useUI } from '@/components/UIProvider';
+import { isValidEmail } from '@/lib/validators';
 
 interface PageProps {
   params: { planId: string };
@@ -17,9 +18,10 @@ export default function PlanCheckoutPage({ params }: PageProps) {
   const [notFound, setNotFound] = useState(false);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({ name: '', phone: '', email: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', cpf: '' });
 
   useEffect(() => {
+    if (!planId || planId === 'null') { setNotFound(true); setLoading(false); return; }
     fetch(`/api/plans/public?planId=${planId}`)
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(setPlan)
@@ -33,18 +35,27 @@ export default function PlanCheckoutPage({ params }: PageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isValidEmail(form.email)) {
+      toast('E-mail inválido. Verifique o formato.', 'error');
+      return;
+    }
+    if (!form.cpf || form.cpf.replace(/\D/g, '').length !== 11) {
+      toast('CPF inválido. Verifique o número.', 'error');
+      return;
+    }
     setSubmitting(true);
     try {
-      const res = await fetch('/api/payments/stripe', {
+      const res = await fetch('/api/payments/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'create-checkout',
+          action: 'create-asaas-checkout',
           planId: plan.id,
           clientName: form.name,
           clientEmail: form.email,
           clientPhone: form.phone,
-          origin: window.location.origin,
+          clientCpf: form.cpf,
+          billingType: 'CREDIT_CARD',
         }),
       });
       const data = await res.json();
@@ -147,24 +158,36 @@ export default function PlanCheckoutPage({ params }: PageProps) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <h2 className="text-[11px] font-mono font-black text-white/40 uppercase tracking-widest mb-4">Seus dados</h2>
-          {[
-            { key: 'name',  label: 'Nome completo',  placeholder: 'João Silva',       type: 'text',  required: true  },
-            { key: 'phone', label: 'WhatsApp / Tel',  placeholder: '(11) 99999-9999', type: 'tel',   required: false },
-            { key: 'email', label: 'E-mail',          placeholder: 'joao@email.com',  type: 'email', required: true  },
-          ].map(f => (
-            <div key={f.key} className="space-y-1.5">
-              <label className="text-[10px] font-mono text-white/40 uppercase tracking-widest">{f.label}</label>
-              <input
-                type={f.type}
-                required={f.required}
-                placeholder={f.placeholder}
-                value={(form as any)[f.key]}
-                onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                className="w-full rounded-2xl px-5 py-4 text-white font-medium outline-none text-sm"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-              />
-            </div>
-          ))}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Nome completo</label>
+            <input required type="text" placeholder="João Silva" value={form.name}
+              onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full rounded-2xl px-5 py-4 text-white font-medium outline-none text-sm"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-white/40 uppercase tracking-widest">CPF</label>
+            <input required type="text" placeholder="000.000.000-00" value={form.cpf}
+              onChange={e => setForm(prev => ({ ...prev, cpf: e.target.value }))}
+              className="w-full rounded-2xl px-5 py-4 text-white font-medium outline-none text-sm"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-white/40 uppercase tracking-widest">WhatsApp / Tel</label>
+            <input type="tel" placeholder="(11) 99999-9999" value={form.phone}
+              onChange={e => setForm(prev => ({ ...prev, phone: e.target.value }))}
+              className="w-full rounded-2xl px-5 py-4 text-white font-medium outline-none text-sm"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-white/40 uppercase tracking-widest">E-mail</label>
+            <input required type="email" placeholder="joao@email.com" value={form.email}
+              onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))}
+              className="w-full rounded-2xl px-5 py-4 text-white font-medium outline-none text-sm"
+              style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${form.email && !isValidEmail(form.email) ? '#ef4444' : 'rgba(255,255,255,0.1)'}` }} />
+            {form.email && !isValidEmail(form.email) && <p className="text-[10px] text-red-400 font-mono">E-mail inválido</p>}
+          </div>
+
 
           <button
             type="submit"
@@ -173,11 +196,11 @@ export default function PlanCheckoutPage({ params }: PageProps) {
           >
             {submitting
               ? <><Loader2 size={18} className="animate-spin" /> Redirecionando...</>
-              : <><CreditCard size={17} /> Assinar com Cartão <ArrowRight size={17} /></>}
+                : <><CreditCard size={17} /> Assinar com Cartão <ArrowRight size={17} /></>}
           </button>
 
           <p className="text-center text-[9px] font-mono text-white/20 uppercase tracking-widest pt-2">
-            Pagamento seguro via Stripe · Recorrência mensal automática
+            Pagamento seguro via Asaas · Recorrência mensal automática
           </p>
         </form>
       </div>

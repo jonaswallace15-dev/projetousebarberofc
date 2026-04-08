@@ -5,6 +5,7 @@ import { Plus, Edit2, Trash2, Users, Check, Link2, Zap, X as XIcon, ArrowRight, 
 import { supabaseService } from '@/services/supabaseService';
 import { useAuth } from '@/components/AuthProvider';
 import { useUI } from '@/components/UIProvider';
+import { isValidEmail, isValidCPF, maskCPF } from '@/lib/validators';
 import type { SubscriptionPlan } from '@/types';
 
 const emptyPlan: Partial<SubscriptionPlan> = {
@@ -46,18 +47,27 @@ export default function SubscriptionsPage() {
   const handleCharge = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chargeModal) return;
+    if (chargeForm.email && !isValidEmail(chargeForm.email)) {
+      toast('E-mail inválido. Verifique o formato.', 'error');
+      return;
+    }
+    if (chargeForm.taxId && !isValidCPF(chargeForm.taxId)) {
+      toast('CPF inválido. Verifique os dígitos.', 'error');
+      return;
+    }
     setCharging(true);
     try {
-      const res = await fetch('/api/payments/stripe', {
+      const res = await fetch('/api/payments/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'create-checkout',
+          action: 'create-asaas-checkout',
           planId: chargeModal.id,
           clientName: chargeForm.name,
           clientPhone: chargeForm.phone,
           clientEmail: chargeForm.email,
-          origin: window.location.origin,
+          clientCpf: chargeForm.taxId,
+          billingType: 'CREDIT_CARD',
         }),
       });
       const data = await res.json();
@@ -74,13 +84,13 @@ export default function SubscriptionsPage() {
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([
-      supabaseService.getPlans(),
-      supabaseService.getClientSubscriptions(),
-    ]).then(([p, cs]) => {
-      setPlans(p);
-      setClientSubs(Array.isArray(cs) ? cs : []);
-    }).finally(() => setLoading(false));
+    supabaseService.getPlans()
+      .then(p => setPlans(Array.isArray(p) ? p : []))
+      .catch(() => setPlans([]));
+    supabaseService.getClientSubscriptions()
+      .then(cs => setClientSubs(Array.isArray(cs) ? cs : []))
+      .catch(() => setClientSubs([]))
+      .finally(() => setLoading(false));
   }, [user]);
 
   const openModal = (plan?: SubscriptionPlan) => {
@@ -123,10 +133,6 @@ export default function SubscriptionsPage() {
     <div className="space-y-10 pb-20">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-4">
-            <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse shadow-[0_0_10px_#0070FF]" />
-            <span className="text-[10px] font-mono uppercase tracking-widest text-brand-accent font-bold">Subscription Engine Active</span>
-          </div>
           <h1 className="text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
             Assinaturas<span className="text-brand-accent">.</span>
           </h1>
@@ -336,12 +342,12 @@ export default function SubscriptionsPage() {
                         <button
                           onClick={async () => {
                             if (!await confirm({ message: `Cancelar assinatura de ${sub.clientName}?`, danger: true, confirmLabel: 'Cancelar assinatura' })) return;
-                            await fetch('/api/payments/stripe', {
+                            await fetch('/api/payments/checkout', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
                                 action: 'cancel-subscription',
-                                subscriptionId: sub.stripeSubscriptionId || (sub as any).data?.stripeSubscriptionId || null,
+                                asaasSubscriptionId: sub.asaasSubscriptionId || (sub as any).data?.asaasSubscriptionId || null,
                                 clientSubscriptionId: sub.id,
                               }),
                             });
@@ -380,7 +386,7 @@ export default function SubscriptionsPage() {
                 <h2 className="text-2xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
                   {chargeModal.name}<span className="text-brand-accent">.</span>
                 </h2>
-                <p className="text-brand-muted text-sm font-mono mt-1">R$ {chargeModal.price}/mês · Cartão recorrente</p>
+                <p className="text-brand-muted text-sm font-mono mt-1">R$ {chargeModal.price}/mês · Recorrência mensal</p>
               </div>
               <button onClick={() => setChargeModal(null)}
                 className="w-10 h-10 rounded-full flex items-center justify-center text-brand-muted hover:text-brand-main hover:rotate-90 transition-all"
@@ -391,25 +397,41 @@ export default function SubscriptionsPage() {
 
             {/* Form */}
             <form onSubmit={handleCharge} className="px-8 py-6 space-y-4">
-              {[
-                { key: 'name',  label: 'Nome do cliente',   placeholder: 'João Silva',      type: 'text',  required: true },
-                { key: 'phone', label: 'WhatsApp / Tel',    placeholder: '(11) 99999-9999', type: 'tel',   required: true },
-                { key: 'email', label: 'E-mail',            placeholder: 'joao@email.com',  type: 'email', required: false },
-                { key: 'taxId', label: 'CPF do cliente',    placeholder: '000.000.000-00',  type: 'text',  required: true },
-              ].map(f => (
-                <div key={f.key} className="space-y-1.5">
-                  <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">{f.label}</label>
-                  <input
-                    type={f.type}
-                    required={f.required}
-                    placeholder={f.placeholder}
-                    value={(chargeForm as any)[f.key]}
-                    onChange={e => setChargeForm(p => ({ ...p, [f.key]: e.target.value }))}
-                    className="w-full rounded-2xl px-4 py-3 text-brand-main font-medium outline-none text-sm transition-all"
-                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
-                  />
-                </div>
-              ))}
+              {/* Nome */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Nome do cliente</label>
+                <input required type="text" placeholder="João Silva" value={chargeForm.name}
+                  onChange={e => setChargeForm(p => ({ ...p, name: e.target.value }))}
+                  className="w-full rounded-2xl px-4 py-3 text-brand-main font-medium outline-none text-sm transition-all"
+                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
+              </div>
+              {/* Telefone */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">WhatsApp / Tel</label>
+                <input required type="tel" placeholder="(11) 99999-9999" value={chargeForm.phone}
+                  onChange={e => setChargeForm(p => ({ ...p, phone: e.target.value }))}
+                  className="w-full rounded-2xl px-4 py-3 text-brand-main font-medium outline-none text-sm transition-all"
+                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
+              </div>
+              {/* E-mail */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">E-mail</label>
+                <input type="email" placeholder="joao@email.com" value={chargeForm.email}
+                  onChange={e => setChargeForm(p => ({ ...p, email: e.target.value }))}
+                  className="w-full rounded-2xl px-4 py-3 text-brand-main font-medium outline-none text-sm transition-all"
+                  style={{ background: 'var(--input-bg)', border: `1px solid ${chargeForm.email && !isValidEmail(chargeForm.email) ? '#ef4444' : 'var(--input-border)'}` }} />
+                {chargeForm.email && !isValidEmail(chargeForm.email) && <p className="text-[10px] text-red-400 font-mono">E-mail inválido</p>}
+              </div>
+              {/* CPF */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">CPF do cliente</label>
+                <input required type="text" placeholder="000.000.000-00" value={chargeForm.taxId}
+                  onChange={e => setChargeForm(p => ({ ...p, taxId: maskCPF(e.target.value) }))}
+                  className="w-full rounded-2xl px-4 py-3 text-brand-main font-medium outline-none text-sm transition-all"
+                  style={{ background: 'var(--input-bg)', border: `1px solid ${chargeForm.taxId && !isValidCPF(chargeForm.taxId) ? '#ef4444' : 'var(--input-border)'}` }} />
+                {chargeForm.taxId && !isValidCPF(chargeForm.taxId) && <p className="text-[10px] text-red-400 font-mono">CPF inválido</p>}
+              </div>
+
 
               <button type="submit" disabled={charging}
                 className="w-full py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[12px] uppercase tracking-[0.2em] shadow-[0_0_25px_rgba(0,112,255,0.3)] hover:opacity-90 transition-all disabled:opacity-40 flex items-center justify-center gap-3 mt-2">

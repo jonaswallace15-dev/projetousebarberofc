@@ -51,11 +51,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(wallet);
     }
 
-    // Retorna todas as carteiras do usuário
+    // Retorna todas as carteiras do usuário com data do último crédito
     const wallets = await prisma.wallet.findMany({
       where: { userId: session.user.id },
     });
-    return NextResponse.json(wallets);
+
+    const walletsWithCredit = await Promise.all(wallets.map(async (w) => {
+      const lastCredit = await prisma.walletTransaction.findFirst({
+        where: { walletId: w.id, type: 'credit' },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      });
+      return { ...w, lastCreditAt: lastCredit?.createdAt ?? null };
+    }));
+
+    return NextResponse.json(walletsWithCredit);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

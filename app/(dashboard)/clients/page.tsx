@@ -6,6 +6,7 @@ import { ShimmerButton } from '@/components/ui/shimmer-button';
 import { useAuth } from '@/components/AuthProvider';
 import { useUI } from '@/components/UIProvider';
 import { supabaseService } from '@/services/supabaseService';
+import { isValidEmail } from '@/lib/validators';
 import type { Client } from '@/types';
 
 const emptyForm = { id: '', name: '', phone: '', email: '', instagram: '', birthDate: '', address: '', notes: '' };
@@ -37,6 +38,10 @@ export default function ClientsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.email && !isValidEmail(form.email)) {
+      toast('E-mail inválido. Verifique o formato.', 'error');
+      return;
+    }
     setSaving(true);
     try {
       const payload = { ...form };
@@ -57,10 +62,6 @@ export default function ClientsPage() {
     <div className="space-y-10 pb-20">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-4">
-            <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse"></span>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-brand-accent font-bold">Client Directory Active</span>
-          </div>
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
             Clientes<span className="text-brand-accent">.</span>
           </h1>
@@ -184,7 +185,8 @@ export default function ClientsPage() {
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Email</label>
-                  <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} />
+                  <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all" style={{ background: 'var(--input-bg)', borderColor: form.email && !isValidEmail(form.email) ? '#ef4444' : 'var(--card-border)', color: 'var(--text-main)' }} placeholder="joao@email.com" />
+                  {form.email && !isValidEmail(form.email) && <p className="text-[10px] text-red-400 font-mono">E-mail inválido</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Instagram</label>

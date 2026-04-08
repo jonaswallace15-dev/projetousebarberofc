@@ -79,10 +79,6 @@ export default function FinancePage() {
     <div className="space-y-10 pb-20">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-4">
-            <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse shadow-[0_0_10px_#0070FF]" />
-            <span className="text-[10px] font-mono uppercase tracking-widest text-brand-accent font-bold">Ledger Synchronization Active</span>
-          </div>
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
             {isBarbeiro ? 'Ganhos' : 'Financeiro'}<span className="text-brand-accent">.</span>
           </h1>
@@ -102,32 +98,53 @@ export default function FinancePage() {
       </header>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:gap-8">
-        {[
-          { label: isBarbeiro ? 'Entradas Brutas' : 'Total Entradas', val: totals.entradas, color: 'text-brand-success', icon: 'solar:card-recive-bold-duotone' },
-          { label: isBarbeiro ? 'Deduções/Taxas' : 'Total Saídas', val: totals.saidas, color: 'text-rose-500', icon: 'solar:course-down-bold-duotone' },
-          { label: isBarbeiro ? 'Saldo Líquido' : 'Resultado Real', val: totals.saldo, color: 'text-brand-accent', icon: 'solar:wallet-2-bold-duotone', wide: true },
-        ].map((stat, i) => (
-          <div key={i} className={`flashlight-card p-6 sm:p-10 rounded-[2.5rem] sm:rounded-[3.5rem] relative overflow-hidden ${(stat as any).wide ? 'col-span-2' : 'col-span-1'}`}>
-            <div className={`flex items-center justify-between mb-4 sm:mb-6 ${(stat as any).wide ? 'flex-row' : 'flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-0'}`}>
-              <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl sm:rounded-[1.5rem] flex items-center justify-center ${stat.color}`} style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
-                <iconify-icon icon={stat.icon} class="text-2xl sm:text-3xl" />
+      {isBarbeiro ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
+          {[
+            { label: 'Total Comissões', val: totals.entradas, color: 'text-brand-success', icon: 'solar:card-recive-bold-duotone' },
+            { label: 'Atendimentos', val: transactions.length, color: 'text-brand-accent', icon: 'solar:scissors-bold-duotone', isCont: true },
+          ].map((stat, i) => (
+            <div key={i} className="flashlight-card p-6 sm:p-10 rounded-[2.5rem] sm:rounded-[3.5rem]">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl sm:rounded-[1.5rem] flex items-center justify-center ${stat.color}`} style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+                  <iconify-icon icon={stat.icon} class="text-2xl sm:text-3xl" />
+                </div>
+                <span className="text-[9px] sm:text-[10px] font-mono font-black uppercase tracking-[0.2em] text-brand-muted text-right">{stat.label}</span>
               </div>
-              <span className={`text-[9px] sm:text-[10px] font-mono font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] text-brand-muted ${(stat as any).wide ? 'text-right' : 'text-left sm:text-right'}`}>
-                {stat.label}
-              </span>
+              <h3 className={`text-2xl sm:text-4xl font-mono font-black ${stat.color} truncate`}>
+                {(stat as any).isCont ? stat.val : <><span className="text-sm sm:text-lg mr-1 tracking-tighter opacity-50">R$</span>{(stat.val as number).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</>}
+              </h3>
             </div>
-            <h3 className={`text-2xl sm:text-4xl font-mono font-black ${stat.color} truncate`}>
-              <span className="text-sm sm:text-lg mr-1 tracking-tighter opacity-50">R$</span>
-              {stat.val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </h3>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:gap-8">
+          {[
+            { label: 'Total Entradas', val: totals.entradas, color: 'text-brand-success', icon: 'solar:card-recive-bold-duotone' },
+            { label: 'Total Saídas', val: totals.saidas, color: 'text-rose-500', icon: 'solar:course-down-bold-duotone' },
+            { label: 'Resultado Real', val: totals.saldo, color: 'text-brand-accent', icon: 'solar:wallet-2-bold-duotone', wide: true },
+          ].map((stat, i) => (
+            <div key={i} className={`flashlight-card p-6 sm:p-10 rounded-[2.5rem] sm:rounded-[3.5rem] relative overflow-hidden ${(stat as any).wide ? 'col-span-2' : 'col-span-1'}`}>
+              <div className={`flex items-center justify-between mb-4 sm:mb-6 ${(stat as any).wide ? 'flex-row' : 'flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-0'}`}>
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl sm:rounded-[1.5rem] flex items-center justify-center ${stat.color}`} style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+                  <iconify-icon icon={stat.icon} class="text-2xl sm:text-3xl" />
+                </div>
+                <span className={`text-[9px] sm:text-[10px] font-mono font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] text-brand-muted ${(stat as any).wide ? 'text-right' : 'text-left sm:text-right'}`}>
+                  {stat.label}
+                </span>
+              </div>
+              <h3 className={`text-2xl sm:text-4xl font-mono font-black ${stat.color} truncate`}>
+                <span className="text-sm sm:text-lg mr-1 tracking-tighter opacity-50">R$</span>
+                {stat.val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </h3>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Transaction history */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className={`${isBarbeiro ? 'lg:col-span-12' : 'lg:col-span-8'} space-y-6`}>
           <h2 className="text-2xl font-display font-black text-brand-main uppercase tracking-tight flex items-center gap-3 px-2">
             <iconify-icon icon="solar:history-bold-duotone" class="text-3xl text-brand-accent" />
             Histórico de Fluxo
@@ -183,8 +200,8 @@ export default function FinancePage() {
           </div>
         </div>
 
-        {/* Channels */}
-        <div className="lg:col-span-4 space-y-6">
+        {/* Channels — só para proprietário */}
+        {!isBarbeiro && <div className="lg:col-span-4 space-y-6">
           <h2 className="text-2xl font-display font-black text-brand-main uppercase tracking-tight flex items-center gap-3 px-2">
             <iconify-icon icon="solar:pie-chart-2-bold-duotone" class="text-3xl text-brand-accent" />
             Canais
@@ -221,7 +238,7 @@ export default function FinancePage() {
                 : 'Registre suas transações para visualizar insights.'}
             </p>
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Modal */}

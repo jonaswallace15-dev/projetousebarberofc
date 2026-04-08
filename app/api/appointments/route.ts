@@ -12,8 +12,18 @@ export async function GET(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
+    // Se o usuário logado for barbeiro, filtra pelos agendamentos dele
+    const role = (session?.user as any)?.role;
+    let barberId: string | undefined;
+    if (role === 'Barbeiro' && session?.user?.id) {
+      const barber = await prisma.barber.findFirst({ where: { accountId: session.user.id }, select: { id: true, userId: true } });
+      if (barber) { barberId = barber.id; }
+    }
+
     const appointments = await prisma.appointment.findMany({
-      where: { userId },
+      where: barberId
+        ? { barberId }
+        : { userId },
       orderBy: { date: 'desc' },
     });
 
@@ -51,10 +61,20 @@ export async function POST(request: NextRequest) {
     const barberName = body.barberName ?? body.barber_name ?? null;
     const serviceId = body.serviceId ?? body.service_id ?? null;
     const serviceName = body.serviceName ?? body.service_name ?? null;
+    const productId = body.productId ?? body.product_id ?? null;
+    const productName = body.productName ?? body.product_name ?? null;
     const time = body.time ?? null;
     const date = body.date ?? null;
     const status = body.status ?? 'Agendado';
-    const price = body.price ?? null;
+
+    // Busca preço do banco pelo serviceId para evitar manipulação no frontend
+    let price: number | null = null;
+    if (serviceId) {
+      const svc = await prisma.service.findFirst({ where: { id: serviceId, userId } });
+      price = svc?.price ?? null;
+    }
+    // Fallback apenas para agendamentos internos do admin (sem serviceId no banco)
+    if (price === null) price = typeof body.price === 'number' ? body.price : 0;
 
     const data = {
       userId,
@@ -64,11 +84,13 @@ export async function POST(request: NextRequest) {
       barberName,
       serviceId,
       serviceName,
+      productId,
+      productName,
       time,
       date,
       status,
       price,
-    };
+    } as any;
 
     let appointment;
     if (id) {
@@ -103,6 +125,19 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (e) { console.error('[client-upsert]', e); }
+    }
+
+    // Decrementar estoque do produto quando agendamento é confirmado (apenas na criação)
+    if (status === 'Confirmado' && !id && productId) {
+      try {
+        const prod = await prisma.product.findFirst({ where: { id: productId, userId } });
+        if (prod && prod.stock > 0) {
+          await prisma.product.update({
+            where: { id: productId },
+            data: { stock: { decrement: 1 } },
+          });
+        }
+      } catch (e) { console.error('[stock-decrement]', e); }
     }
 
     // Creditar carteira apenas quando confirmado

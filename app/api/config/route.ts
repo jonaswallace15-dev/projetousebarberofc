@@ -24,6 +24,28 @@ export async function GET() {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    const body = await request.json();
+    const existing = await prisma.config.findUnique({ where: { userId: session.user.id } });
+
+    // Só atualiza se o registro já existir (tem slug), senão ignora
+    if (!existing) return NextResponse.json({ ok: true });
+
+    const currentData = (existing.data as object) ?? {};
+    await prisma.config.update({
+      where: { userId: session.user.id },
+      data: { data: { ...currentData, ...body } },
+    });
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -32,11 +54,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { slug, id, user_id, ...rest } = body;
 
+    // Preserva campos como `theme` que podem ter sido salvos separadamente
+    const existing = await prisma.config.findUnique({ where: { userId: session.user.id } });
+    const currentData = (existing?.data as object) ?? {};
+
     const config = await prisma.config.upsert({
       where: { userId: session.user.id },
       update: {
         slug: slug ?? null,
-        data: rest,
+        data: { ...currentData, ...rest },
       },
       create: {
         userId: session.user.id,

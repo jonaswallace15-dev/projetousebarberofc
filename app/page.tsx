@@ -278,14 +278,20 @@ export default function LandingPage() {
                         ))}
                     </div>
 
-                    <div className="flex items-center gap-4 md:gap-8">
-                        <ShimmerButton 
-                            onClick={() => router.push("/login")} 
-                            background="rgba(0, 102, 255, 0.1)"
-                            shimmerColor="var(--brand-accent)"
-                            className="hidden md:flex w-48 text-[10px] tracking-widest border-brand-accent/20 text-brand-main shadow-none" 
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => router.push("/login")}
+                            className="hidden md:flex items-center px-6 py-2.5 rounded-full border border-white/20 text-[10px] font-bold uppercase tracking-widest text-brand-main hover:bg-white/10 transition-all"
                         >
-                            ÁREA DO BARBEIRO
+                            Login
+                        </button>
+                        <ShimmerButton
+                            onClick={() => router.push("/login?cadastro=1")}
+                            background="var(--brand-accent)"
+                            shimmerColor="#ffffff"
+                            className="hidden md:flex px-6 text-[10px] tracking-widest text-white border-brand-accent/50 shadow-[0_0_20px_rgba(0,112,255,0.3)]"
+                        >
+                            TESTAR GRÁTIS
                         </ShimmerButton>
 
                         <button
@@ -336,14 +342,20 @@ export default function LandingPage() {
                 </nav>
 
                 {/* Footer com Login CTA */}
-                <div className="p-8 border-t border-white/10">
+                <div className="p-8 border-t border-white/10 flex flex-col gap-3">
                     <button
                         onClick={() => { setIsMenuOpen(false); router.push("/login"); }}
+                        className="w-full border border-white/20 py-5 rounded-[2rem] text-[10px] font-mono font-black uppercase tracking-[0.3em] text-white active:scale-95 transition-all hover:bg-white/10"
+                    >
+                        Login
+                    </button>
+                    <button
+                        onClick={() => { setIsMenuOpen(false); router.push("/login?cadastro=1"); }}
                         className="w-full bg-brand-accent py-5 rounded-[2rem] text-[10px] font-mono font-black uppercase tracking-[0.3em] text-white shadow-[0_15px_30px_rgba(0,112,255,0.4)] active:scale-95 transition-all"
                     >
-                        Entrar na Área
+                        Testar Grátis
                     </button>
-                    <p className="text-[7px] font-mono text-center text-zinc-600 uppercase tracking-widest mt-4">SISTEMA_V3.0_NEXUS</p>
+                    <p className="text-[7px] font-mono text-center text-zinc-600 uppercase tracking-widest mt-2">SISTEMA_V3.0_NEXUS</p>
                 </div>
             </div>
 
@@ -397,20 +409,22 @@ export default function LandingPage() {
                             A arquitetura digital <span className="font-medium text-brand-accent">definitiva</span> para quem exige<br className="hidden md:block" /> o ápice da estética e gestão na barbearia.
                         </p>
 
-                        <div className="mt-16 flex flex-col sm:flex-row items-center justify-center gap-8">
-                            <ShimmerButton
+                        <div className="mt-16 flex flex-col sm:flex-row items-center justify-center gap-4">
+                            <button
                                 onClick={() => router.push("/login")}
+                                className="w-56 py-5 rounded-full border border-white/30 text-sm font-bold uppercase tracking-widest hover:bg-white/10 transition-all"
+                            >
+                                Login
+                            </button>
+
+                            <ShimmerButton
+                                onClick={() => router.push("/login?cadastro=1")}
                                 background="var(--brand-accent)"
                                 shimmerColor="#ffffff"
-                                className="w-72 py-4 shadow-[0_20px_50px_rgba(0,112,255,0.4)] text-xs tracking-widest text-white border-brand-accent/50"
+                                className="w-56 py-4 shadow-[0_20px_50px_rgba(0,112,255,0.4)] text-xs tracking-widest text-white border-brand-accent/50"
                             >
-                                INICIAR EXPERIÊNCIA
+                                TESTAR GRÁTIS
                             </ShimmerButton>
-
-                            <a href="#recursos" className="flex items-center gap-4 px-12 py-6 border border-white/30 rounded-full text-sm font-bold uppercase tracking-widest hover:bg-white/10 transition-all">
-                                <iconify-icon icon="solar:play-circle-linear" class="text-2xl"></iconify-icon>
-                                Ver Recursos
-                            </a>
                         </div>
                     </div>
 

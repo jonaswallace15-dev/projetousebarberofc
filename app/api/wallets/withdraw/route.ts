@@ -7,38 +7,36 @@ export async function POST(request: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { walletId, amount, pixKey } = await request.json();
+    const { amount, pixKey, walletType } = await request.json();
     const userId = session.user.id;
 
-    const parsedAmount = Number(amount);
-    if (!walletId || !Number.isFinite(parsedAmount) || parsedAmount <= 0 || !pixKey?.trim()) {
+    const parsedAmount = Math.round(Number(amount) * 100) / 100;
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 });
     }
 
-    const wallet = await prisma.wallet.findFirst({ where: { id: walletId, userId } });
-    if (!wallet) return NextResponse.json({ error: 'Carteira não encontrada' }, { status: 404 });
-    if (wallet.balance < amount) return NextResponse.json({ error: 'Saldo insuficiente' }, { status: 400 });
+    const validTypes = ['subscription', 'barbershop', 'barber'];
+    const type = validTypes.includes(walletType) ? walletType : 'barbershop';
+
+    // Chave PIX obrigatória apenas para carteiras que não são de assinatura
+    if (type !== 'subscription' && !pixKey?.trim()) {
+      return NextResponse.json({ error: 'Chave PIX obrigatória' }, { status: 400 });
+    }
+
+    const finalPixKey = pixKey?.trim() || 'A definir pelo admin';
 
     const withdrawal = await prisma.$transaction(async (tx) => {
-      await tx.wallet.update({
-        where: { id: walletId },
-        data: { balance: { decrement: amount } },
-      });
+      const wallet = await tx.wallet.findFirst({ where: { userId, type } });
+      if (!wallet) throw new Error('Carteira não encontrada');
+      if (wallet.balance < parsedAmount) throw new Error('Saldo insuficiente');
 
+      await tx.wallet.update({ where: { id: wallet.id }, data: { balance: { decrement: parsedAmount } } });
       await tx.walletTransaction.create({
-        data: {
-          userId,
-          walletId,
-          amount,
-          type: 'debit',
-          method: 'pix',
-          description: `Saque PIX — chave: ${pixKey}`,
-          category: 'saque',
-        },
+        data: { userId, walletId: wallet.id, amount: parsedAmount, type: 'debit', method: 'pix', description: `Saque PIX — chave: ${finalPixKey}`, category: 'saque' },
       });
 
       return tx.withdrawal.create({
-        data: { walletId, userId, amount, pixKey, status: 'Pendente' },
+        data: { walletId: wallet.id, userId, amount: parsedAmount, pixKey: finalPixKey, status: 'Pendente' },
       });
     });
 
@@ -55,6 +53,7 @@ export async function GET() {
   const withdrawals = await prisma.withdrawal.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: 'desc' },
+    select: { id: true, amount: true, pixKey: true, status: true, createdAt: true, processedAt: true },
   });
 
   return NextResponse.json(withdrawals);

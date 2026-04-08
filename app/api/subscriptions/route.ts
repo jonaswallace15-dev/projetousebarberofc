@@ -25,7 +25,7 @@ export async function GET() {
       clientEmail: s.client.email,
       planName: s.plan.name,
       planPrice: s.plan.price,
-      stripeSubscriptionId: (s as any).stripeSubscriptionId || (s.data as any)?.stripeSubscriptionId || null,
+      asaasSubscriptionId: (s.data as any)?.asaasSubscriptionId || null,
       subscribedAt: (s.data as any)?.subscribedAt || (s.data as any)?.simulatedAt || null,
     })));
   } catch (err: any) {

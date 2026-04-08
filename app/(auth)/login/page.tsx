@@ -1,17 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import { Scissors, Mail, Lock, Eye, EyeOff, Sparkles, AlertCircle, CheckCircle2, User, Smartphone } from 'lucide-react';
 import { ShimmerButton } from '@/components/ui/shimmer-button';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 type AuthMode = 'login' | 'register' | 'forgot';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [mode, setMode] = useState<AuthMode>('login');
+  const [mode, setMode] = useState<AuthMode>(searchParams.get('cadastro') ? 'register' : 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -39,7 +40,10 @@ export default function LoginPage() {
       if (result?.error) {
         setError('E-mail ou senha incorretos. Verifique seus dados.');
       } else {
-        router.push('/dashboard');
+        const session = await getSession();
+        const role = (session?.user as any)?.role;
+        router.push(role === 'Super Admin' ? '/admin' : '/dashboard');
+        // Barbeiros e Proprietários vão para /dashboard — o layout filtra o conteúdo por role
         router.refresh();
       }
     } catch {
@@ -187,17 +191,7 @@ export default function LoginPage() {
           <form onSubmit={submitHandler} className="space-y-4">
             {mode === 'register' && (
               <>
-                <div className="space-y-2 mb-4">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest px-1">Seu Nível de Acesso</label>
-                  <div className="flex bg-zinc-900 border border-zinc-800 p-1 rounded-2xl">
-                    <button type="button" onClick={() => setRole('Proprietário')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black transition-all ${role === 'Proprietário' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                      <Sparkles size={14} /> PROPRIETÁRIO
-                    </button>
-                    <button type="button" onClick={() => setRole('Barbeiro')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-black transition-all ${role === 'Barbeiro' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                      <Scissors size={14} /> BARBEIRO
-                    </button>
-                  </div>
-                </div>
+
                 <div className="relative">
                   <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600 pointer-events-none" />
                   <input type="text" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Seu nome completo" className="w-full bg-zinc-900 border border-zinc-800 focus:border-blue-500 rounded-2xl pl-12 pr-5 py-4 text-white placeholder:text-zinc-600 outline-none transition-all text-sm" />
@@ -254,6 +248,29 @@ export default function LoginPage() {
               <button onClick={() => switchMode('login')} className="text-blue-400 font-bold hover:text-blue-300 transition-colors text-sm flex items-center gap-2 mx-auto">← Voltar ao login</button>
             )}
           </div>
+
+          {mode !== 'forgot' && (
+            <div className="mt-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="flex-1 h-px bg-zinc-800" />
+                <span className="text-zinc-600 text-xs font-mono uppercase tracking-widest">ou</span>
+                <div className="flex-1 h-px bg-zinc-800" />
+              </div>
+              <button
+                type="button"
+                onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+                className="w-full flex items-center justify-center gap-3 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 text-white rounded-2xl py-4 text-sm font-bold transition-all hover:bg-zinc-800"
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4"/>
+                  <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
+                  <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
+                  <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
+                </svg>
+                Continuar com Google
+              </button>
+            </div>
+          )}
 
           <div className="mt-8 pt-8 border-t border-zinc-900">
             <p className="text-zinc-700 text-xs text-center">

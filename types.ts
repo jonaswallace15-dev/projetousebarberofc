@@ -92,8 +92,9 @@ export interface Wallet {
   id: string;
   user_id: string;
   barber_id?: string;
-  type: 'system' | 'barbershop' | 'barber';
+  type: 'system' | 'barbershop' | 'barber' | 'subscription';
   balance: number;
+  lastCreditAt?: string | null;
 }
 
 export interface WalletTransaction {

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Instagram, ExternalLink, Check, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Instagram, ExternalLink, Check, ChevronRight, Loader2 } from 'lucide-react';
 import { supabaseService } from '@/services/supabaseService';
 import { useAuth } from '@/components/AuthProvider';
 import { useUI } from '@/components/UIProvider';
@@ -31,6 +31,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState('general');
+  const [autoSlug, setAutoSlug] = useState(true);
+  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const slugCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isFetchingCep, setIsFetchingCep] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +60,7 @@ export default function SettingsPage() {
     if (!user) return;
     supabaseService.getBusinessConfig().then((data: any) => {
       if (data) {
+        if (data.slug) setAutoSlug(false);
         setConfig(prev => ({
           ...prev,
           name: data.name || '',
@@ -78,6 +82,46 @@ export default function SettingsPage() {
       }
     }).finally(() => setLoading(false));
   }, [user]);
+
+  const toSlug = (str: string) =>
+    str.toLowerCase().trim()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '-').replace(/[^\w-]+/g, '')
+      .replace(/--+/g, '-').replace(/^-+/, '').replace(/-+$/, '');
+
+  const checkSlug = useCallback((slug: string) => {
+    if (!slug) { setSlugStatus('idle'); return; }
+    setSlugStatus('checking');
+    if (slugCheckTimer.current) clearTimeout(slugCheckTimer.current);
+    slugCheckTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/config/check-slug?slug=${encodeURIComponent(slug)}`);
+        const data = await res.json();
+        setSlugStatus(data.available ? 'available' : 'taken');
+      } catch {
+        setSlugStatus('idle');
+      }
+    }, 500);
+  }, []);
+
+  const handleNameChange = (name: string) => {
+    setConfig(c => {
+      const next = { ...c, name };
+      if (autoSlug) {
+        const generated = toSlug(name);
+        next.slug = generated;
+        checkSlug(generated);
+      }
+      return next;
+    });
+  };
+
+  const handleSlugChange = (raw: string) => {
+    setAutoSlug(false);
+    const slug = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+    setConfig(c => ({ ...c, slug }));
+    checkSlug(slug);
+  };
 
   const bookingLink = `usebarber.site/book/${config.slug}`;
 
@@ -128,6 +172,10 @@ export default function SettingsPage() {
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (slugStatus === 'taken') {
+      toast('O slug escolhido já está em uso. Altere o nome ou edite o slug.', 'error');
+      return;
+    }
     setSaving(true);
     try {
       const cleanSlug = config.slug
@@ -156,7 +204,12 @@ export default function SettingsPage() {
       setConfig(prev => ({ ...prev, slug: cleanSlug }));
       toast('Configurações salvas com sucesso!', 'success');
     } catch (err: any) {
-      toast('Erro ao salvar: ' + err.message, 'error');
+      if (err.message?.includes('Unique') || err.message?.includes('slug')) {
+        toast('Este slug já está em uso. Escolha outro nome ou edite o slug.', 'error');
+        setSlugStatus('taken');
+      } else {
+        toast('Erro ao salvar: ' + err.message, 'error');
+      }
     } finally { setSaving(false); }
   };
 
@@ -172,10 +225,6 @@ export default function SettingsPage() {
     <div className="space-y-10 pb-20 max-w-6xl mx-auto">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-4">
-            <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse shadow-[0_0_10px_#0070FF]" />
-            <span className="text-[10px] font-mono uppercase tracking-widest text-brand-accent font-bold">System Configuration Active</span>
-          </div>
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
               Ajustes<span className="text-brand-accent">.</span>
@@ -276,14 +325,19 @@ export default function SettingsPage() {
                 <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
                     <label className="text-[10px] font-mono text-brand-muted uppercase tracking-[0.2em] ml-2">Nome do Estabelecimento</label>
-                    <input type="text" value={config.name} onChange={e => setConfig(c => ({ ...c, name: e.target.value }))}
+                    <input type="text" value={config.name} onChange={e => handleNameChange(e.target.value)}
                       className="w-full rounded-2xl py-5 px-6 text-brand-main text-xl font-display font-black outline-none transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
                   </div>
                   <div className="space-y-3">
-                    <label className="text-[10px] font-mono text-brand-muted uppercase tracking-[0.2em] ml-2">Endereço Digital (Slug)</label>
-                    <div className="flex items-center rounded-2xl overflow-hidden" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}>
+                    <div className="flex items-center justify-between ml-2">
+                      <label className="text-[10px] font-mono text-brand-muted uppercase tracking-[0.2em]">Endereço Digital (Slug)</label>
+                      {slugStatus === 'checking' && <span className="flex items-center gap-1 text-[9px] font-mono text-brand-muted"><Loader2 size={10} className="animate-spin" /> verificando...</span>}
+                      {slugStatus === 'available' && <span className="text-[9px] font-mono text-brand-success font-black">✓ disponível</span>}
+                      {slugStatus === 'taken' && <span className="text-[9px] font-mono text-rose-400 font-black">✗ já em uso</span>}
+                    </div>
+                    <div className="flex items-center rounded-2xl overflow-hidden" style={{ background: 'var(--input-bg)', border: `1px solid ${slugStatus === 'taken' ? 'rgba(248,113,113,0.5)' : slugStatus === 'available' ? 'rgba(16,185,129,0.4)' : 'var(--input-border)'}` }}>
                       <span className="px-6 py-5 text-brand-muted font-mono text-xs tracking-tight" style={{ borderRight: '1px solid var(--input-border)' }}>book/</span>
-                      <input type="text" value={config.slug} onChange={e => setConfig(c => ({ ...c, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') }))}
+                      <input type="text" value={config.slug} onChange={e => handleSlugChange(e.target.value)}
                         className="flex-1 bg-transparent px-6 py-5 text-brand-accent font-mono font-black text-sm outline-none" />
                     </div>
                   </div>

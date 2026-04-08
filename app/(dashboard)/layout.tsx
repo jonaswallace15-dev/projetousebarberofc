@@ -4,25 +4,20 @@ import React, { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter } from 'next/navigation';
-import { Menu, X, LogOut, Bell } from 'lucide-react';
+import { Menu, X, LogOut, Bell, Sun, Moon } from 'lucide-react';
+import { ThemeProvider, useTheme } from '@/components/ThemeProvider';
 
-function DashboardShell({ children }: { children: React.ReactNode }) {
-  const { user, userRole, loading, signOut } = useAuth();
+interface InnerProps {
+  children: React.ReactNode;
+  user: { id: string; email?: string | null };
+  userRole: string;
+  signOut: () => Promise<void>;
+}
+
+function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
+  const { theme, toggle } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--brand-deep)' }}>
-        <iconify-icon icon="solar:scissors-square-bold-duotone" class="text-6xl text-brand-accent animate-pulse" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    router.push('/login');
-    return null;
-  }
 
   const handleSignOut = async () => {
     await signOut();
@@ -58,6 +53,34 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             <button className="w-10 h-10 flex items-center justify-center rounded-xl text-brand-muted hover:text-brand-main transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
               <Bell size={18} />
             </button>
+            <button
+              onClick={toggle}
+              title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
+              className="relative w-14 h-7 rounded-full transition-all duration-300 flex-shrink-0"
+              style={{
+                background: theme === 'dark'
+                  ? 'rgba(255,255,255,0.06)'
+                  : 'rgba(0,102,255,0.15)',
+                border: theme === 'dark'
+                  ? '1px solid rgba(255,255,255,0.1)'
+                  : '1px solid rgba(0,102,255,0.3)',
+              }}
+            >
+              <Moon size={10} className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-50" style={{ color: 'var(--text-muted)' }} />
+              <Sun size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-50" style={{ color: theme === 'light' ? '#0066FF' : 'var(--text-muted)' }} />
+              <span
+                className="absolute top-0.5 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 shadow-md"
+                style={{
+                  left: theme === 'dark' ? '2px' : 'calc(100% - 26px)',
+                  background: theme === 'dark' ? 'rgba(255,255,255,0.12)' : '#0066FF',
+                  boxShadow: theme === 'light' ? '0 0 10px rgba(0,102,255,0.4)' : 'none',
+                }}
+              >
+                {theme === 'dark'
+                  ? <Moon size={11} style={{ color: '#E2E8F0' }} />
+                  : <Sun size={11} style={{ color: '#fff' }} />}
+              </span>
+            </button>
             <div className="flex items-center gap-3 px-4 py-2 rounded-xl" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
               <div className="w-8 h-8 rounded-lg bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center text-brand-accent font-display font-black text-sm">
                 {user.email?.charAt(0).toUpperCase()}
@@ -84,6 +107,32 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
     </div>
+  );
+}
+
+function DashboardShell({ children }: { children: React.ReactNode }) {
+  const { user, userRole, loading, signOut } = useAuth();
+  const router = useRouter();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--brand-deep)' }}>
+        <iconify-icon icon="solar:scissors-square-bold-duotone" class="text-6xl text-brand-accent animate-pulse" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
+
+  return (
+    <ThemeProvider userId={user.id}>
+      <DashboardInner user={user} userRole={userRole} signOut={signOut}>
+        {children}
+      </DashboardInner>
+    </ThemeProvider>
   );
 }
 

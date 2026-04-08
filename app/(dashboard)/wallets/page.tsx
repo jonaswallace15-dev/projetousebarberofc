@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useUI } from '@/components/UIProvider';
-import type { Wallet, WalletTransaction } from '@/types';
+import type { Wallet } from '@/types';
 
 interface WithdrawalRecord {
   id: string;
@@ -17,7 +17,6 @@ export default function WalletsPage() {
   const { user } = useAuth();
   const { toast } = useUI();
   const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [withdrawModal, setWithdrawModal] = useState<{ wallet: Wallet } | null>(null);
@@ -28,11 +27,9 @@ export default function WalletsPage() {
     if (!user) return;
     Promise.all([
       fetch('/api/wallets').then(r => r.json()).catch(() => []),
-      fetch('/api/wallets/transactions').then(r => r.json()).catch(() => []),
       fetch('/api/wallets/withdraw').then(r => r.json()).catch(() => []),
-    ]).then(([w, t, wd]) => {
+    ]).then(([w, wd]) => {
       setWallets(Array.isArray(w) ? w : []);
-      setTransactions(Array.isArray(t) ? t : []);
       setWithdrawals(Array.isArray(wd) ? wd : []);
     }).finally(() => setLoading(false));
   };
@@ -42,7 +39,7 @@ export default function WalletsPage() {
   const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
 
   const getWalletLabel = (type: string) => {
-    const labels: Record<string, string> = { system: 'Sistema', barbershop: 'Barbearia', barber: 'Barbeiro' };
+    const labels: Record<string, string> = { system: 'Sistema', barbershop: 'Agendamentos', barber: 'Barbeiro', subscription: 'Assinaturas' };
     return labels[type] || type;
   };
 
@@ -51,26 +48,34 @@ export default function WalletsPage() {
       system: 'solar:server-bold-duotone',
       barbershop: 'solar:shop-2-bold-duotone',
       barber: 'solar:user-bold-duotone',
+      subscription: 'solar:crown-bold-duotone',
     };
     return icons[type] || 'solar:wallet-bold-duotone';
   };
 
+
   const handleWithdraw = async () => {
     if (!withdrawModal) return;
     const amount = parseFloat(withdrawForm.amount.replace(',', '.'));
-    if (!amount || amount <= 0 || !withdrawForm.pixKey.trim()) return;
+    const isSubscription = withdrawModal.wallet.type === 'subscription';
+    if (!amount || amount <= 0) return;
+    if (!isSubscription && !withdrawForm.pixKey.trim()) return;
     setWithdrawing(true);
     try {
       const res = await fetch('/api/wallets/withdraw', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletId: withdrawModal.wallet.id, amount, pixKey: withdrawForm.pixKey.trim() }),
+        body: JSON.stringify({
+          amount,
+          pixKey: isSubscription ? '' : withdrawForm.pixKey.trim(),
+          walletType: withdrawModal.wallet.type,
+        }),
       });
       const data = await res.json();
       if (data.error) { toast(data.error, 'error'); return; }
       setWithdrawModal(null);
       setWithdrawForm({ amount: '', pixKey: '' });
-      toast('Saque solicitado com sucesso!', 'success');
+      toast(isSubscription ? 'Saque realizado com sucesso!' : 'Saque solicitado com sucesso!', 'success');
       loadData();
     } catch { toast('Erro ao solicitar saque.', 'error'); }
     finally { setWithdrawing(false); }
@@ -89,10 +94,6 @@ export default function WalletsPage() {
   return (
     <div className="space-y-10 pb-20">
       <header>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-4">
-          <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse shadow-[0_0_10px_#0070FF]" />
-          <span className="text-[10px] font-mono uppercase tracking-widest text-brand-accent font-bold">Wallet System Active</span>
-        </div>
         <h1 className="text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
           Carteiras<span className="text-brand-accent">.</span>
         </h1>
@@ -136,10 +137,35 @@ export default function WalletsPage() {
                 </span>
               </div>
               <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest font-black mb-2">Saldo Disponível</p>
-              <div className="text-4xl font-display font-black text-brand-success tracking-tighter mb-6">
+              <div className="text-4xl font-display font-black text-brand-success tracking-tighter mb-4">
                 <span className="text-lg mr-1 opacity-50">R$</span>
                 {(wallet.balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </div>
+              {wallet.type === 'subscription' && (() => {
+                const availableDate = wallet.lastCreditAt
+                  ? new Date(new Date(wallet.lastCreditAt).getTime() + 32 * 24 * 60 * 60 * 1000)
+                  : null;
+                const now = new Date();
+                const isAvailable = availableDate ? availableDate <= now : false;
+                return (
+                  <div className={`mb-4 px-4 py-2.5 rounded-2xl flex items-center gap-2.5 ${isAvailable ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-amber-500/10 border border-amber-500/20'}`}>
+                    <iconify-icon icon={isAvailable ? 'solar:check-circle-bold-duotone' : 'solar:clock-circle-bold-duotone'} class={`text-base flex-shrink-0 ${isAvailable ? 'text-emerald-400' : 'text-amber-400'}`} />
+                    <div>
+                      <p className={`text-[9px] font-mono font-black uppercase tracking-widest ${isAvailable ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {isAvailable ? 'Saque disponível' : 'Disponível em'}
+                      </p>
+                      {!isAvailable && availableDate && (
+                        <p className="text-[10px] font-mono text-amber-300/80 mt-0.5">
+                          {availableDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </p>
+                      )}
+                      {!availableDate && (
+                        <p className="text-[10px] font-mono text-amber-300/80 mt-0.5">Aguardando primeiro crédito</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
               <button
                 onClick={() => { setWithdrawModal({ wallet }); setWithdrawForm({ amount: '', pixKey: '' }); }}
                 className="w-full py-3 rounded-2xl text-[11px] font-mono font-black uppercase tracking-widest transition-all hover:border-brand-accent/40 hover:text-brand-accent active:scale-95"
@@ -149,45 +175,6 @@ export default function WalletsPage() {
               </button>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Transactions */}
-      {transactions.length > 0 && (
-        <div className="space-y-6">
-          <h2 className="text-2xl font-display font-black text-brand-main uppercase tracking-tight flex items-center gap-3 px-2">
-            <iconify-icon icon="solar:history-bold-duotone" class="text-3xl text-brand-accent" />
-            Movimentações
-          </h2>
-          <div className="flashlight-card rounded-[3rem] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-[10px] font-mono text-brand-muted uppercase tracking-[0.2em] font-black" style={{ background: 'var(--input-bg)', borderBottom: '1px solid var(--card-border)' }}>
-                    <th className="px-8 py-6 text-left">Descrição</th>
-                    <th className="px-8 py-6 text-left hidden md:table-cell">Categoria</th>
-                    <th className="px-8 py-6 text-right">Valor</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y" style={{ borderColor: 'var(--card-border)' }}>
-                  {transactions.map(t => (
-                    <tr key={t.id} className="hover:bg-brand-accent/[0.02] transition-colors group">
-                      <td className="px-8 py-6">
-                        <p className="font-display font-black text-brand-main uppercase text-sm tracking-tight group-hover:text-brand-accent transition-colors">{t.description}</p>
-                        {t.created_at && <p className="text-[9px] font-mono text-brand-muted mt-1">{new Date(t.created_at).toLocaleDateString('pt-BR')}</p>}
-                      </td>
-                      <td className="px-8 py-6 hidden md:table-cell">
-                        <span className="text-[9px] font-mono font-black text-brand-muted px-3 py-1.5 rounded-full uppercase tracking-widest" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>{t.category}</span>
-                      </td>
-                      <td className={`px-8 py-6 text-right font-mono font-black ${t.type === 'credit' ? 'text-brand-success' : 'text-rose-500'}`}>
-                        {t.type === 'credit' ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
       )}
 
@@ -262,21 +249,28 @@ export default function WalletsPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest ml-1">Chave PIX</label>
-                <input
-                  type="text"
-                  value={withdrawForm.pixKey}
-                  onChange={e => setWithdrawForm(f => ({ ...f, pixKey: e.target.value }))}
-                  placeholder="CPF, e-mail, telefone ou chave aleatória"
-                  className="w-full rounded-2xl py-4 px-6 text-brand-main font-medium outline-none"
-                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
-                />
-              </div>
+              {withdrawModal.wallet.type !== 'subscription' ? (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest ml-1">Chave PIX</label>
+                  <input
+                    type="text"
+                    value={withdrawForm.pixKey}
+                    onChange={e => setWithdrawForm(f => ({ ...f, pixKey: e.target.value }))}
+                    placeholder="CPF, e-mail, telefone ou chave aleatória"
+                    className="w-full rounded-2xl py-4 px-6 text-brand-main font-medium outline-none"
+                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
+                  />
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl flex items-center gap-3" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                  <iconify-icon icon="solar:card-bold-duotone" class="text-xl text-indigo-400" />
+                  <p className="text-[11px] font-mono text-indigo-300">O valor será transferido via PIX após aprovação.</p>
+                </div>
+              )}
 
               <button
                 onClick={handleWithdraw}
-                disabled={withdrawing || !withdrawForm.amount || !withdrawForm.pixKey}
+                disabled={withdrawing || !withdrawForm.amount || (withdrawModal.wallet.type !== 'subscription' && !withdrawForm.pixKey)}
                 className="w-full py-5 rounded-2xl bg-brand-accent text-white font-display font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(0,112,255,0.3)] hover:opacity-90 transition-all disabled:opacity-40"
               >
                 {withdrawing ? 'Processando...' : 'Confirmar Saque'}

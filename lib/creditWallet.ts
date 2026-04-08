@@ -4,23 +4,29 @@ import { prisma } from '@/lib/prisma';
  * Cria ou encontra a carteira da barbearia e credita o valor do pagamento.
  * Chamado quando um agendamento é confirmado via pagamento.
  */
-export async function creditWallet(userId: string, amount: number, appointmentId: string, description: string) {
+export async function creditWallet(
+  userId: string,
+  amount: number,
+  relatedId: string,
+  description: string,
+  walletType: 'barbershop' | 'subscription' = 'barbershop',
+) {
   if (!userId || !amount || amount <= 0) return;
 
-  // Idempotência: não creditar duas vezes o mesmo agendamento
+  // Idempotência: não creditar duas vezes o mesmo evento
   const alreadyCredited = await prisma.walletTransaction.findFirst({
-    where: { relatedId: appointmentId, type: 'credit', category: 'pagamento' },
+    where: { relatedId, type: 'credit', category: 'pagamento' },
   });
   if (alreadyCredited) return;
 
-  // Busca ou cria carteira da barbearia
+  // Busca ou cria carteira do tipo solicitado
   let wallet = await prisma.wallet.findFirst({
-    where: { userId, type: 'barbershop' },
+    where: { userId, type: walletType },
   });
 
   if (!wallet) {
     wallet = await prisma.wallet.create({
-      data: { userId, type: 'barbershop', balance: 0 },
+      data: { userId, type: walletType, balance: 0 },
     });
   }
 
@@ -41,19 +47,19 @@ export async function creditWallet(userId: string, amount: number, appointmentId
         method: 'pix',
         description,
         category: 'pagamento',
-        relatedId: appointmentId,
+        relatedId,
       },
     }),
     prisma.financeTransaction.create({
       data: {
         userId,
         type: 'Entrada',
-        category: 'Serviço',
+        category: walletType === 'subscription' ? 'Assinatura' : 'Serviço',
         amount,
         date: today,
-        method: 'Pix',
+        method: walletType === 'subscription' ? 'Cartão' : 'Pix',
         description,
-        appointmentId,
+        appointmentId: walletType === 'barbershop' ? relatedId : null,
       },
     }),
   ]);

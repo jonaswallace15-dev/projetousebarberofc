@@ -738,7 +738,8 @@ export default function AdminPage() {
                         }`}>{w.status}</span>
                       </td>
                       <td className="px-8 py-5 text-right text-sm font-mono font-black text-rose-400">
-                        R$ {(w.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        <p>R$ {(w.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        {w.notes && <p className="text-[9px] font-mono text-brand-muted mt-1">{w.notes}</p>}
                       </td>
                       <td className="px-8 py-5 text-center">
                         {w.status === 'Pendente' ? (

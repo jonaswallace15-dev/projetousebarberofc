@@ -125,10 +125,6 @@ export default function AppointmentsPage() {
     <div className="space-y-10 pb-20">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-4">
-            <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse shadow-[0_0_10px_#0070FF]"></span>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-brand-accent font-bold">Timeline Module Active</span>
-          </div>
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
             Agenda<span className="text-brand-accent">.</span>
           </h1>
@@ -142,9 +138,11 @@ export default function AppointmentsPage() {
               <button key={v} onClick={() => setView(v as any)} className={`flex-1 px-4 sm:px-6 py-4 text-[11px] font-mono uppercase tracking-[0.2em] font-bold rounded-xl transition-all ${view === v ? 'bg-brand-accent text-white shadow-[0_0_20px_rgba(0,112,255,0.4)]' : 'text-brand-muted hover:text-brand-main'}`}>{v}</button>
             ))}
           </div>
-          <ShimmerButton onClick={() => openNew()} className="w-full text-[10px] tracking-[0.2em] whitespace-nowrap px-6 py-4 sm:py-5">
-            AGENDAR MANUALMENTE
-          </ShimmerButton>
+          {!isBarbeiro && (
+            <ShimmerButton onClick={() => openNew()} className="w-full text-[10px] tracking-[0.2em] whitespace-nowrap px-6 py-4 sm:py-5">
+              AGENDAR MANUALMENTE
+            </ShimmerButton>
+          )}
         </div>
       </header>
 
@@ -267,6 +265,12 @@ export default function AppointmentsPage() {
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-mono text-brand-muted uppercase tracking-widest">
                       <span>{app.serviceName}</span>
                       <span>{app.barberName}</span>
+                      {(app as any).productName && (
+                        <span className="flex items-center gap-1 text-brand-accent/70">
+                          <span>+</span>
+                          <span>{(app as any).productName}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -294,9 +298,11 @@ export default function AppointmentsPage() {
             <div className="flashlight-card py-24 flex flex-col items-center justify-center text-center rounded-[4rem] px-8">
               <h3 className="text-2xl font-display font-black text-brand-main uppercase tracking-tight">Vazio Estratégico</h3>
               <p className="text-brand-muted mt-2 font-mono uppercase text-[10px] tracking-[0.2em]">Nenhuma operação agendada para este ciclo temporal.</p>
-              <ShimmerButton onClick={() => openNew()} className="mt-10 px-10 py-4 text-[11px] font-display font-black uppercase tracking-[0.3em] whitespace-nowrap">
-                INICIAR PROTOCOLO
-              </ShimmerButton>
+              {!isBarbeiro && (
+                <ShimmerButton onClick={() => openNew()} className="mt-10 px-10 py-4 text-[11px] font-display font-black uppercase tracking-[0.3em] whitespace-nowrap">
+                  INICIAR PROTOCOLO
+                </ShimmerButton>
+              )}
             </div>
           )}
         </div>
