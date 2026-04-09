@@ -60,7 +60,6 @@ export default function SettingsPage() {
     if (!user) return;
     supabaseService.getBusinessConfig().then((data: any) => {
       if (data) {
-        if (data.slug) setAutoSlug(false);
         setConfig(prev => ({
           ...prev,
           name: data.name || '',
