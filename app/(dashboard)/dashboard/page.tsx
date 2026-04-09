@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { DollarSign, Users, Calendar, Scissors, Sparkles, Clock, CheckCircle2, ChevronRight, Activity, TrendingUp } from 'lucide-react';
 import { StatCard } from '@/components/StatCard';
 import { ShimmerButton } from '@/components/ui/shimmer-button';
+import { OnboardingTour } from '@/components/OnboardingTour';
 import { useAuth } from '@/components/AuthProvider';
 import { supabaseService } from '@/services/supabaseService';
 import { getBusinessInsights } from '@/services/gemini';
@@ -148,6 +149,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-10 pb-20">
+      {/* Onboarding Tour — só para Proprietário */}
+      {!isBarbeiro && user?.id && <OnboardingTour userId={user.id} />}
+
       {/* HEADER */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
