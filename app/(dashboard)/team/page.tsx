@@ -512,6 +512,7 @@ export default function TeamPage() {
         </div>
 
         <button
+          data-tour="team-add"
           onClick={() => openModal()}
           className="flex items-center gap-3 px-10 py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(0,112,255,0.4)] hover:bg-brand-accent/90 transition-all whitespace-nowrap w-full md:w-auto justify-center"
         >

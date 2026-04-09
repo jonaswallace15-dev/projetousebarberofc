@@ -243,6 +243,7 @@ export default function SettingsPage() {
         </div>
 
         <button
+          data-tour="settings-save"
           onClick={() => handleSave()}
           disabled={saving}
           className="w-full md:w-auto flex items-center justify-center gap-3 px-10 py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(0,112,255,0.4)] hover:bg-brand-accent/90 transition-all whitespace-nowrap disabled:opacity-50"
@@ -324,7 +325,7 @@ export default function SettingsPage() {
                 <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
                     <label className="text-[10px] font-mono text-brand-muted uppercase tracking-[0.2em] ml-2">Nome do Estabelecimento</label>
-                    <input type="text" value={config.name} onChange={e => handleNameChange(e.target.value)}
+                    <input data-tour="settings-name" type="text" value={config.name} onChange={e => handleNameChange(e.target.value)}
                       className="w-full rounded-2xl py-5 px-6 text-brand-main text-xl font-display font-black outline-none transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
                   </div>
                   <div className="space-y-3">
@@ -336,7 +337,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex items-center rounded-2xl overflow-hidden" style={{ background: 'var(--input-bg)', border: `1px solid ${slugStatus === 'taken' ? 'rgba(248,113,113,0.5)' : slugStatus === 'available' ? 'rgba(16,185,129,0.4)' : 'var(--input-border)'}` }}>
                       <span className="px-6 py-5 text-brand-muted font-mono text-xs tracking-tight" style={{ borderRight: '1px solid var(--input-border)' }}>book/</span>
-                      <input type="text" value={config.slug} onChange={e => handleSlugChange(e.target.value)}
+                      <input data-tour="settings-slug" type="text" value={config.slug} onChange={e => handleSlugChange(e.target.value)}
                         className="flex-1 bg-transparent px-6 py-5 text-brand-accent font-mono font-black text-sm outline-none" />
                     </div>
                   </div>
