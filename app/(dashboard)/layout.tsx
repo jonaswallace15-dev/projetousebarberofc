@@ -56,29 +56,50 @@ function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
             <button
               onClick={toggle}
               title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
-              className="relative w-14 h-7 rounded-full transition-all duration-300 flex-shrink-0"
-              style={{
-                background: theme === 'dark'
-                  ? 'rgba(255,255,255,0.06)'
-                  : 'rgba(0,102,255,0.15)',
-                border: theme === 'dark'
-                  ? '1px solid rgba(255,255,255,0.1)'
-                  : '1px solid rgba(0,102,255,0.3)',
-              }}
+              className="relative flex-shrink-0 transition-all duration-500"
+              style={{ width: '52px', height: '28px' }}
             >
-              <Moon size={10} className="absolute left-1.5 top-1/2 -translate-y-1/2 opacity-50" style={{ color: 'var(--text-muted)' }} />
-              <Sun size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-50" style={{ color: theme === 'light' ? '#0066FF' : 'var(--text-muted)' }} />
+              {/* Track */}
               <span
-                className="absolute top-0.5 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 shadow-md"
+                className="absolute inset-0 rounded-full transition-all duration-500"
                 style={{
-                  left: theme === 'dark' ? '2px' : 'calc(100% - 26px)',
-                  background: theme === 'dark' ? 'rgba(255,255,255,0.12)' : '#0066FF',
-                  boxShadow: theme === 'light' ? '0 0 10px rgba(0,102,255,0.4)' : 'none',
+                  background: theme === 'dark'
+                    ? 'linear-gradient(135deg, #1e293b, #0f172a)'
+                    : 'linear-gradient(135deg, #3b82f6, #0066FF)',
+                  border: theme === 'dark'
+                    ? '1px solid rgba(255,255,255,0.08)'
+                    : '1px solid rgba(0,102,255,0.4)',
+                  boxShadow: theme === 'light'
+                    ? '0 0 16px rgba(0,102,255,0.35), inset 0 1px 0 rgba(255,255,255,0.2)'
+                    : 'inset 0 2px 4px rgba(0,0,0,0.4)',
+                }}
+              />
+              {/* Stars (dark mode) */}
+              {theme === 'dark' && (
+                <>
+                  <span className="absolute rounded-full bg-white/30" style={{ width: 2, height: 2, top: 7, left: 10 }} />
+                  <span className="absolute rounded-full bg-white/20" style={{ width: 1.5, height: 1.5, top: 14, left: 15 }} />
+                  <span className="absolute rounded-full bg-white/25" style={{ width: 2, height: 2, top: 10, left: 20 }} />
+                </>
+              )}
+              {/* Thumb */}
+              <span
+                className="absolute top-0.5 flex items-center justify-center rounded-full transition-all duration-500"
+                style={{
+                  width: '23px',
+                  height: '23px',
+                  left: theme === 'dark' ? '2px' : 'calc(100% - 25px)',
+                  background: theme === 'dark'
+                    ? 'linear-gradient(135deg, #e2e8f0, #cbd5e1)'
+                    : 'linear-gradient(135deg, #fff, #f0f6ff)',
+                  boxShadow: theme === 'dark'
+                    ? '0 2px 6px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)'
+                    : '0 2px 8px rgba(0,102,255,0.4), 0 0 0 1px rgba(255,255,255,0.8)',
                 }}
               >
                 {theme === 'dark'
-                  ? <Moon size={11} style={{ color: '#E2E8F0' }} />
-                  : <Sun size={11} style={{ color: '#fff' }} />}
+                  ? <Moon size={11} style={{ color: '#475569' }} />
+                  : <Sun size={12} style={{ color: '#0066FF' }} />}
               </span>
             </button>
             <div className="flex items-center gap-3 px-4 py-2 rounded-xl" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
