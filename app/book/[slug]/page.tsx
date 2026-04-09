@@ -56,26 +56,31 @@ export default function BookingPage({ params }: PageProps) {
     const load = async () => {
       try {
         const uid = await supabaseService.getUserIdBySlug(slug);
-        if (!uid) { setNotFound(true); return; }
+        if (!uid) { setNotFound(true); setLoading(false); return; }
         setUserId(uid);
 
-        const [config, svcs, brbs, prods, appts] = await Promise.all([
-          fetch(`/api/config/slug?slug=${encodeURIComponent(slug)}`).then(r => r.json()),
-          fetch(`/api/services?user_id=${uid}`).then(r => r.json()),
-          supabaseService.getBarbers(uid),
-          supabaseService.getProducts(uid),
-          supabaseService.getAppointments(uid),
-        ]);
-
+        const config = await fetch(`/api/config/slug?slug=${encodeURIComponent(slug)}`).then(r => r.json());
         setBusinessInfo(config);
-        // Aplica o tema salvo pelo proprietário
         const ownerTheme: 'dark' | 'light' = config?.theme === 'light' ? 'light' : 'dark';
         document.documentElement.classList.remove('dark', 'light');
         document.documentElement.classList.add(ownerTheme);
-        setServices(Array.isArray(svcs) ? svcs.filter((s: Service) => s.active !== false) : []);
-        setBarbers(Array.isArray(brbs) ? brbs : []);
-        setProducts(Array.isArray(prods) ? prods.filter((p: Product) => p.active !== false && p.stock > 0) : []);
-        setAppointments(Array.isArray(appts) ? appts : []);
+
+        fetch(`/api/services?user_id=${uid}`).then(r => r.json())
+          .then(svcs => setServices(Array.isArray(svcs) ? svcs.filter((s: Service) => s.active !== false) : []))
+          .catch(() => setServices([]));
+
+        supabaseService.getBarbers(uid)
+          .then(brbs => setBarbers(Array.isArray(brbs) ? brbs : []))
+          .catch(() => setBarbers([]));
+
+        supabaseService.getProducts(uid)
+          .then(prods => setProducts(Array.isArray(prods) ? prods.filter((p: Product) => p.active !== false && p.stock > 0) : []))
+          .catch(() => setProducts([]));
+
+        supabaseService.getAppointments(uid)
+          .then(appts => setAppointments(Array.isArray(appts) ? appts : []))
+          .catch(() => setAppointments([]));
+
       } catch {
         setNotFound(true);
       } finally {
