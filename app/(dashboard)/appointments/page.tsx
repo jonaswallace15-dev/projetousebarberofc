@@ -33,20 +33,19 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([
-      supabaseService.getAppointments(),
-      supabaseService.getServices(),
-      supabaseService.getBarbers(),
-      supabaseService.getBusinessConfig(),
-    ]).then(([appts, svcs, barbers, config]) => {
-      setAppointments(appts || []);
-      setServices(svcs || []);
-      setTeam(barbers || []);
-      setBusinessConfig(config);
-      if (svcs?.length) setForm(f => ({ ...f, serviceId: svcs[0].id }));
-      if (barbers?.length) setForm(f => ({ ...f, barberId: barbers[0].id }));
-      setLoading(false);
-    });
+    supabaseService.getAppointments()
+      .then(appts => setAppointments(appts || []))
+      .catch(() => setAppointments([]));
+    supabaseService.getServices()
+      .then(svcs => { setServices(svcs || []); if (svcs?.length) setForm(f => ({ ...f, serviceId: svcs[0].id })); })
+      .catch(() => setServices([]));
+    supabaseService.getBarbers()
+      .then(barbers => { setTeam(barbers || []); if (barbers?.length) setForm(f => ({ ...f, barberId: barbers[0].id })); })
+      .catch(() => setTeam([]));
+    supabaseService.getBusinessConfig()
+      .then(config => setBusinessConfig(config))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [user]);
 
   const calendarDays = useMemo(() => {
