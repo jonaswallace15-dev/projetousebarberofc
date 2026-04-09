@@ -29,6 +29,8 @@ export default function BookingPage({ params }: PageProps) {
   const [paymentBilling, setPaymentBilling] = useState<{ id: string; url: string; status: string; pixQrCode?: string | null; brCode?: string | null } | null>(null);
   const [pixCopied, setPixCopied] = useState(false);
   const pendingAppointmentRef = useRef<(Partial<Appointment> & { user_id?: string }) | null>(null);
+  const [isSubscriber, setIsSubscriber] = useState(false);
+  const [subscriberPlan, setSubscriberPlan] = useState<string | null>(null);
 
   const [bookingData, setBookingData] = useState({
     serviceId: '',
@@ -43,6 +45,20 @@ export default function BookingPage({ params }: PageProps) {
   });
 
   const [userId, setUserId] = useState<string | undefined>();
+
+  const checkSubscription = async (cpf: string, uid: string) => {
+    const cleaned = cpf.replace(/\D/g, '');
+    if (cleaned.length !== 11) { setIsSubscriber(false); setSubscriberPlan(null); return; }
+    try {
+      const res = await fetch(`/api/public/check-subscription?userId=${uid}&cpf=${cleaned}`);
+      const data = await res.json();
+      setIsSubscriber(data.isSubscriber);
+      setSubscriberPlan(data.planName || null);
+    } catch {
+      setIsSubscriber(false);
+      setSubscriberPlan(null);
+    }
+  };
 
   // Restaura dark ao sair da página de booking
   useEffect(() => {
@@ -186,7 +202,9 @@ export default function BookingPage({ params }: PageProps) {
       const barber = barbers.find(b => b.id === bookingData.barberId);
       const product = products.find(p => p.id === bookingData.productId);
 
-      // Cria o agendamento como Pendente antes de gerar o PIX
+      const apptStatus = isSubscriber ? 'Confirmado' : 'Pendente';
+
+      // Cria o agendamento (Confirmado para assinantes, Pendente para pagamento PIX)
       const pendingAppt = await supabaseService.upsertAppointment({
         user_id: userId,
         clientName: bookingData.clientName,
@@ -201,8 +219,15 @@ export default function BookingPage({ params }: PageProps) {
         productName: product?.name || null,
         time: bookingData.time,
         date: bookingData.date,
-        status: 'Pendente',
+        status: apptStatus,
       } as any);
+
+      // Assinante: confirma direto sem PIX
+      if (isSubscriber) {
+        setComplete(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
 
       pendingAppointmentRef.current = { ...pendingAppt, user_id: userId };
 
@@ -562,13 +587,25 @@ export default function BookingPage({ params }: PageProps) {
                       type="text"
                       placeholder="CPF (000.000.000-00)"
                       value={bookingData.clientCpf}
-                      onChange={e => setBookingData(d => ({ ...d, clientCpf: maskCPF(e.target.value) }))}
+                      onChange={e => {
+                        const masked = maskCPF(e.target.value);
+                        setBookingData(d => ({ ...d, clientCpf: masked }));
+                        if (userId) checkSubscription(masked, userId);
+                      }}
                       className="w-full rounded-[2rem] pl-16 pr-8 py-5 text-brand-main outline-none font-medium transition-all"
                       style={{ background: 'var(--input-bg)', border: `1px solid ${bookingData.clientCpf && !isValidCPF(bookingData.clientCpf) ? '#ef4444' : 'var(--input-border)'}` }}
                     />
                   </div>
                   {bookingData.clientCpf && !isValidCPF(bookingData.clientCpf) && (
                     <p className="text-[10px] text-red-400 font-mono pl-4">CPF inválido</p>
+                  )}
+                  {isSubscriber && subscriberPlan && (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-2xl mt-1" style={{ background: 'rgba(0,200,100,0.1)', border: '1px solid rgba(0,200,100,0.3)' }}>
+                      <span className="text-green-400 text-base">✓</span>
+                      <p className="text-[11px] font-mono font-bold text-green-400 uppercase tracking-widest">
+                        Assinante — {subscriberPlan} · Agendamento gratuito
+                      </p>
+                    </div>
                   )}
                 </div>
                 {/* E-mail com validação */}
