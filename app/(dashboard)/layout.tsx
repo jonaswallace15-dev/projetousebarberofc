@@ -57,23 +57,31 @@ function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
               onClick={toggle}
               title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
               className="relative flex-shrink-0"
-              style={{ width: '51px', height: '31px' }}
+              style={{ width: '56px', height: '30px' }}
             >
+              {/* Track */}
               <span
                 className="absolute inset-0 rounded-full transition-colors duration-300"
-                style={{ background: theme === 'light' ? '#34C759' : '#3A3A3C' }}
+                style={{ background: theme === 'light' ? '#E5E5EA' : '#1C1C1E' }}
               />
+              {/* Thumb */}
               <span
-                className="absolute rounded-full transition-all duration-300"
+                className="absolute rounded-full flex items-center justify-center transition-all duration-300"
                 style={{
-                  width: '27px',
-                  height: '27px',
+                  width: '26px',
+                  height: '26px',
                   top: '2px',
-                  left: theme === 'light' ? 'calc(100% - 29px)' : '2px',
-                  background: '#fff',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.25), 0 0.5px 1px rgba(0,0,0,0.12)',
+                  left: theme === 'light' ? '2px' : 'calc(100% - 28px)',
+                  background: theme === 'light' ? '#fff' : '#2C2C2E',
+                  boxShadow: theme === 'light'
+                    ? '0 2px 8px rgba(0,0,0,0.18), 0 0.5px 2px rgba(0,0,0,0.1)'
+                    : '0 2px 8px rgba(0,0,0,0.5), 0 0.5px 2px rgba(0,0,0,0.3)',
                 }}
-              />
+              >
+                {theme === 'light'
+                  ? <Sun size={13} style={{ color: '#FF9F0A' }} />
+                  : <Moon size={12} style={{ color: '#E5E5EA' }} />}
+              </span>
             </button>
             <div className="flex items-center gap-3 px-4 py-2 rounded-xl" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
               <div className="w-8 h-8 rounded-lg bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center text-brand-accent font-display font-black text-sm">
