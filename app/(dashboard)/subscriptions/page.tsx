@@ -462,7 +462,7 @@ export default function SubscriptionsPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Preço Mensal (R$)</label>
-                <input required type="number" min="0" step="0.01" value={form.price || 0} onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))}
+                <input required type="number" min="0" step="0.01" value={form.price === 0 ? '' : form.price} placeholder="0" onChange={e => setForm(f => ({ ...f, price: e.target.value === '' ? 0 : Number(e.target.value) }))}
                   className="w-full rounded-2xl px-5 py-4 text-brand-main font-mono font-bold outline-none" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
               </div>
               <div className="space-y-2">

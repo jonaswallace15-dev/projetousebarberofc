@@ -255,8 +255,9 @@ function BarberModal({
                   </label>
                   <input required type="number" min="0" max={form.commissionType === 'percentage' ? 100 : undefined}
                     step={form.commissionType === 'fixed' ? '0.01' : '1'}
-                    value={form.commission || 0}
-                    onChange={e => setForm(f => ({ ...f, commission: Number(e.target.value) }))}
+                    value={form.commission === 0 ? '' : form.commission}
+                    placeholder="0"
+                    onChange={e => setForm(f => ({ ...f, commission: e.target.value === '' ? 0 : Number(e.target.value) }))}
                     className={`${inputCls} font-mono font-black text-brand-accent`}
                     style={inputStyle} />
                 </div>
@@ -636,15 +637,16 @@ export default function TeamPage() {
         {/* Add card */}
         <button
           onClick={() => openModal()}
-          className="flashlight-card rounded-[3.5rem] border-2 border-dashed flex flex-col items-center justify-center text-center p-10 hover:border-brand-accent/50 transition-all group min-h-[450px]"
+          className="flashlight-card rounded-[2rem] lg:rounded-[3.5rem] border-2 border-dashed flex flex-col items-center justify-center text-center p-6 lg:p-12 hover:border-brand-accent/50 transition-all group min-h-[200px] lg:min-h-[450px]"
           style={{ borderColor: 'var(--card-border)' }}
         >
-          <div className="w-24 h-24 rounded-[2rem] flex items-center justify-center text-brand-muted group-hover:bg-brand-accent group-hover:text-white transition-all group-hover:scale-110 group-hover:rotate-12" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
-            <Plus size={40} />
+          <div className="w-14 h-14 lg:w-24 lg:h-24 rounded-xl lg:rounded-[2rem] flex items-center justify-center text-brand-muted group-hover:bg-brand-accent group-hover:text-white transition-all group-hover:scale-110 group-hover:rotate-12" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+            <Plus size={24} className="lg:hidden" />
+            <Plus size={40} className="hidden lg:block" />
           </div>
-          <div className="mt-8">
-            <h3 className="text-2xl font-display font-black text-brand-main group-hover:text-brand-accent transition-colors uppercase tracking-tight">Novo Profissional</h3>
-            <p className="text-brand-muted mt-3 text-xs font-mono uppercase tracking-widest max-w-[200px]">Amplie sua força operacional com novos talentos.</p>
+          <div className="mt-4 lg:mt-8">
+            <h3 className="text-sm lg:text-2xl font-display font-black text-brand-main group-hover:text-brand-accent transition-colors uppercase tracking-tight">Novo Profissional</h3>
+            <p className="text-brand-muted mt-1 lg:mt-3 text-[10px] lg:text-xs font-mono uppercase tracking-widest max-w-[160px] lg:max-w-[200px]">Amplie sua força operacional com novos talentos.</p>
           </div>
         </button>
       </div>

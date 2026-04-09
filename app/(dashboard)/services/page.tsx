@@ -165,10 +165,11 @@ function ServiceProductModal({
               <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Preço (R$)</label>
               <input
                 required type="number" min="0" step="0.01"
-                value={form.price || 0}
+                value={form.price === 0 ? '' : form.price}
+                placeholder="0"
                 onChange={e => isService
-                  ? onChangeService(f => ({ ...f, price: Number(e.target.value) }))
-                  : onChangeProduct(f => ({ ...f, price: Number(e.target.value) }))}
+                  ? onChangeService(f => ({ ...f, price: e.target.value === '' ? 0 : Number(e.target.value) }))
+                  : onChangeProduct(f => ({ ...f, price: e.target.value === '' ? 0 : Number(e.target.value) }))}
                 className={`${inputCls} font-mono font-black text-brand-accent`}
                 style={inputStyle}
               />
@@ -179,10 +180,13 @@ function ServiceProductModal({
               </label>
               <input
                 required type="number" min={isService ? 5 : 0}
-                value={isService ? (serviceForm.duration || 30) : (productForm.stock || 0)}
+                value={isService
+                  ? (serviceForm.duration === 0 ? '' : (serviceForm.duration || ''))
+                  : (productForm.stock === 0 ? '' : (productForm.stock || ''))}
+                placeholder={isService ? '30' : '0'}
                 onChange={e => isService
-                  ? onChangeService(f => ({ ...f, duration: Number(e.target.value) }))
-                  : onChangeProduct(f => ({ ...f, stock: Number(e.target.value) }))}
+                  ? onChangeService(f => ({ ...f, duration: e.target.value === '' ? 0 : Number(e.target.value) }))
+                  : onChangeProduct(f => ({ ...f, stock: e.target.value === '' ? 0 : Number(e.target.value) }))}
                 className={`${inputCls} font-mono font-black`}
                 style={inputStyle}
               />
@@ -300,10 +304,6 @@ export default function ServicesPage() {
     <div className="space-y-10 pb-20">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-4">
-            <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse shadow-[0_0_10px_#0070FF]" />
-            <span className="text-[10px] font-mono uppercase tracking-widest text-brand-accent font-bold">Catalog Management Active</span>
-          </div>
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
             {activeTab === 'services' ? 'Serviços' : 'Produtos'}<span className="text-brand-accent">.</span>
           </h1>
@@ -314,22 +314,22 @@ export default function ServicesPage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="p-1.5 rounded-2xl flex backdrop-blur-xl" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+        <div className="flex items-center gap-3">
+          <div className="p-1.5 rounded-2xl flex items-center gap-1.5 backdrop-blur-xl" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
             <button
               onClick={() => setActiveTab('services')}
-              className={`px-8 py-3 text-[11px] font-mono uppercase tracking-[0.2em] font-bold rounded-xl transition-all ${activeTab === 'services' ? 'bg-brand-accent text-white shadow-[0_0_20px_rgba(0,112,255,0.4)]' : 'text-brand-muted hover:text-white'}`}
+              className={`px-5 py-2.5 text-[11px] font-mono uppercase tracking-[0.2em] font-bold rounded-xl transition-all ${activeTab === 'services' ? 'bg-brand-accent text-white shadow-[0_0_20px_rgba(0,112,255,0.4)]' : 'text-brand-muted hover:text-brand-main'}`}
             >Serviços</button>
             <button
               onClick={() => setActiveTab('products')}
-              className={`px-8 py-3 text-[11px] font-mono uppercase tracking-[0.2em] font-bold rounded-xl transition-all ${activeTab === 'products' ? 'bg-brand-accent text-white shadow-[0_0_20px_rgba(0,112,255,0.4)]' : 'text-brand-muted hover:text-white'}`}
+              className={`px-5 py-2.5 text-[11px] font-mono uppercase tracking-[0.2em] font-bold rounded-xl transition-all ${activeTab === 'products' ? 'bg-brand-accent text-white shadow-[0_0_20px_rgba(0,112,255,0.4)]' : 'text-brand-muted hover:text-brand-main'}`}
             >Produtos</button>
           </div>
           <button
             onClick={() => activeTab === 'services' ? openServiceModal() : openProductModal()}
-            className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[10px] uppercase tracking-widest shadow-[0_0_20px_rgba(0,112,255,0.4)] hover:bg-brand-accent/90 transition-all"
+            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-brand-accent text-white font-display font-black text-[10px] uppercase tracking-widest hover:bg-brand-accent/90 transition-all shadow-[0_0_20px_rgba(0,112,255,0.4)]"
           >
-            <Plus size={16} />
+            <Plus size={14} />
             {activeTab === 'services' ? 'Novo Serviço' : 'Novo Produto'}
           </button>
         </div>
@@ -399,15 +399,16 @@ export default function ServicesPage() {
 
             <button
               onClick={() => openServiceModal()}
-              className="flashlight-card min-h-[480px] rounded-[3.5rem] border-2 border-dashed flex flex-col items-center justify-center text-center p-12 group hover:border-brand-accent/50 transition-all"
+              className="flashlight-card rounded-[2rem] lg:rounded-[3.5rem] border-2 border-dashed flex flex-col items-center justify-center text-center p-8 lg:p-12 gap-4 group hover:border-brand-accent/50 transition-all min-h-[200px] lg:min-h-[480px]"
               style={{ borderColor: 'var(--card-border)' }}
             >
-              <div className="w-24 h-24 rounded-[2rem] flex items-center justify-center text-brand-muted group-hover:bg-brand-accent group-hover:text-white transition-all group-hover:scale-110 group-hover:rotate-12" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
-                <Plus size={40} />
+              <div className="w-14 h-14 lg:w-24 lg:h-24 rounded-2xl lg:rounded-[2rem] flex items-center justify-center text-brand-muted group-hover:bg-brand-accent group-hover:text-white transition-all group-hover:scale-110 lg:group-hover:rotate-12" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+                <Plus size={24} className="lg:hidden" />
+                <Plus size={40} className="hidden lg:block" />
               </div>
-              <div className="mt-8">
-                <h3 className="text-2xl font-display font-black text-brand-main group-hover:text-brand-accent transition-colors uppercase tracking-tight">Novo Serviço</h3>
-                <p className="text-brand-muted mt-3 text-xs font-mono uppercase tracking-widest max-w-[200px]">Adicione novas experiências ao seu catálogo.</p>
+              <div className="mt-0 lg:mt-4 text-center">
+                <h3 className="text-base lg:text-2xl font-display font-black text-brand-main group-hover:text-brand-accent transition-colors uppercase tracking-tight">Novo Serviço</h3>
+                <p className="hidden lg:block text-brand-muted mt-3 text-xs font-mono uppercase tracking-widest max-w-[200px]">Adicione um novo serviço ao catálogo.</p>
               </div>
             </button>
           </>
@@ -474,15 +475,16 @@ export default function ServicesPage() {
 
             <button
               onClick={() => openProductModal()}
-              className="flashlight-card min-h-[480px] rounded-[3.5rem] border-2 border-dashed flex flex-col items-center justify-center text-center p-12 group hover:border-brand-accent/50 transition-all"
+              className="flashlight-card rounded-[2rem] lg:rounded-[3.5rem] border-2 border-dashed flex flex-col items-center justify-center text-center p-8 lg:p-12 gap-4 group hover:border-brand-accent/50 transition-all min-h-[200px] lg:min-h-[480px]"
               style={{ borderColor: 'var(--card-border)' }}
             >
-              <div className="w-24 h-24 rounded-[2rem] flex items-center justify-center text-brand-muted group-hover:bg-brand-accent group-hover:text-white transition-all group-hover:scale-110 group-hover:rotate-12" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
-                <Plus size={40} />
+              <div className="w-14 h-14 lg:w-24 lg:h-24 rounded-2xl lg:rounded-[2rem] flex items-center justify-center text-brand-muted group-hover:bg-brand-accent group-hover:text-white transition-all group-hover:scale-110 lg:group-hover:rotate-12" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+                <Plus size={24} className="lg:hidden" />
+                <Plus size={40} className="hidden lg:block" />
               </div>
-              <div className="mt-8">
-                <h3 className="text-2xl font-display font-black text-brand-main group-hover:text-brand-accent transition-colors uppercase tracking-tight">Novo Produto</h3>
-                <p className="text-brand-muted mt-3 text-xs font-mono uppercase tracking-widest max-w-[200px]">Adicione produtos ao seu inventário.</p>
+              <div className="mt-0 lg:mt-4 text-center">
+                <h3 className="text-base lg:text-2xl font-display font-black text-brand-main group-hover:text-brand-accent transition-colors uppercase tracking-tight">Novo Produto</h3>
+                <p className="hidden lg:block text-brand-muted mt-3 text-xs font-mono uppercase tracking-widest max-w-[200px]">Adicione um novo produto ao catálogo.</p>
               </div>
             </button>
           </>

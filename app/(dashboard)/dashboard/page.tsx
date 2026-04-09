@@ -152,7 +152,9 @@ export default function DashboardPage() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
-            Dashboard<span className="text-brand-accent">.</span>
+            Bem-vindo<span className="text-brand-accent">,</span>{' '}
+            <span className="text-brand-accent">{user?.name?.split(' ')[0] || 'Chefe'}</span>
+            <span className="text-brand-main">.</span>
           </h1>
           <p className="text-brand-muted mt-4 font-medium text-lg max-w-xl leading-relaxed">
             {isBarbeiro ? 'Acompanhe seu desempenho e próximos atendimentos de elite.' : 'Análise em tempo real e controle total da sua operação premium.'}

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter, usePathname } from 'next/navigation';
-import { Menu, X, LogOut, Bell, Sun, Moon, LayoutDashboard, CalendarDays, DollarSign } from 'lucide-react';
+import { Menu, X, LogOut, Bell, Sun, Moon, LayoutDashboard, CalendarDays, DollarSign, Scissors } from 'lucide-react';
 import { ThemeProvider, useTheme } from '@/components/ThemeProvider';
 import Link from 'next/link';
 
@@ -18,6 +18,7 @@ interface InnerProps {
 function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
   const { theme, toggle } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -39,17 +40,20 @@ function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
         <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} userRole={userRole} />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} userRole={userRole} hideBottomNavItems collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} />
 
-      <main className="flex-1 min-h-screen transition-all duration-500 lg:ml-64">
+      <main className={`flex-1 min-h-screen transition-all duration-500 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64'}`}>
         {/* Top Header */}
         <header
           className="sticky top-0 z-30 flex items-center justify-between px-6 lg:px-10 h-20"
           style={{ background: 'var(--header-bg)', borderBottom: '1px solid var(--card-border)', backdropFilter: 'blur(20px)' }}
         >
-          {/* Mobile: only logo area (hamburger moved to bottom nav) */}
-          <div className="lg:hidden flex items-center gap-2">
-            <span className="font-display font-black text-brand-accent text-lg tracking-tight">Usebarber</span>
+          {/* Mobile: logo */}
+          <div className="lg:hidden flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-brand-accent rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent/30">
+              <Scissors size={16} className="text-white" />
+            </div>
+            <span className="font-display font-black text-brand-main text-lg tracking-tight">Usebarber</span>
           </div>
 
           <div className="flex-1 lg:flex-none" />

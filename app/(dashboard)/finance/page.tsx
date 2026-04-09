@@ -90,8 +90,9 @@ export default function FinancePage() {
         {!isBarbeiro && (
           <button
             onClick={() => { setForm({ ...emptyTransaction }); setModalOpen(true); }}
-            className="flex items-center gap-3 px-10 py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(0,112,255,0.4)] hover:bg-brand-accent/90 transition-all whitespace-nowrap"
+            className="flex items-center justify-center gap-2 px-6 py-3.5 md:px-10 md:py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(0,112,255,0.4)] hover:bg-brand-accent/90 transition-all w-full md:w-auto"
           >
+            <span className="text-base leading-none">+</span>
             NOVO LANÇAMENTO
           </button>
         )}
@@ -271,7 +272,7 @@ export default function FinancePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Valor (R$)</label>
-                  <input required type="number" min="0" step="0.01" value={form.amount || 0} onChange={e => setForm(f => ({ ...f, amount: Number(e.target.value) }))}
+                  <input required type="number" min="0" step="0.01" value={form.amount === 0 ? '' : form.amount} placeholder="0" onChange={e => setForm(f => ({ ...f, amount: e.target.value === '' ? 0 : Number(e.target.value) }))}
                     className="w-full rounded-2xl px-5 py-4 text-brand-main font-mono font-bold outline-none" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
                 </div>
                 <div className="space-y-2">
