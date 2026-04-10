@@ -453,9 +453,26 @@ export default function TeamPage() {
 
   useEffect(() => {
     if (!user) return;
-    supabaseService.getBarbers()
-      .then(setTeam)
-      .finally(() => setLoading(false));
+    const init = async () => {
+      const barbers = await supabaseService.getBarbers();
+      if (barbers.length === 0) {
+        // Cria automaticamente o card do proprietário
+        const owner = await supabaseService.upsertBarber({
+          name: user.name || user.email?.split('@')[0] || 'Proprietário',
+          role: 'Dono / Master',
+          commission: 100,
+          commissionType: 'percentage',
+          avatar: '',
+          services: [],
+          schedule: defaultSchedule,
+        } as any);
+        setTeam([owner]);
+      } else {
+        setTeam(barbers);
+      }
+      setLoading(false);
+    };
+    init();
   }, [user]);
 
   const openModal = (barber?: Barber) => {
