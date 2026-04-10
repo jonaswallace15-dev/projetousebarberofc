@@ -456,9 +456,15 @@ export default function TeamPage() {
     const init = async () => {
       try {
         const barbers = await supabaseService.getBarbers();
+        setTeam(barbers);
+        setLoading(false);
+
+        // Cria card do proprietário em background se não existir
         if (barbers.length === 0) {
-          try {
-            const owner = await supabaseService.upsertBarber({
+          const res = await fetch('/api/barbers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
               name: user.name || user.email?.split('@')[0] || 'Proprietário',
               role: 'Dono / Master',
               commission: 100,
@@ -466,17 +472,15 @@ export default function TeamPage() {
               avatar: '',
               services: [],
               schedule: defaultSchedule,
-            } as any);
+            }),
+          });
+          if (res.ok) {
+            const owner = await res.json();
             setTeam([owner]);
-          } catch {
-            setTeam([]);
           }
-        } else {
-          setTeam(barbers);
         }
       } catch {
         setTeam([]);
-      } finally {
         setLoading(false);
       }
     };
