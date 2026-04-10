@@ -11,10 +11,39 @@ export async function GET(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const barbers = await prisma.barber.findMany({
+    let barbers = await prisma.barber.findMany({
       where: { userId },
       orderBy: { name: 'asc' },
     });
+
+    // Auto-cria Dono/Master para novos usuários autenticados
+    if (barbers.length === 0 && session?.user?.id) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { name: true, email: true },
+      });
+      const owner = await prisma.barber.create({
+        data: {
+          userId: session.user.id,
+          name: user?.name || user?.email?.split('@')[0] || 'Proprietário',
+          role: 'Dono / Master',
+          commission: 100,
+          commissionType: 'percentage',
+          avatar: null,
+          services: [],
+          schedule: {
+            monday:    { active: true,  start: '08:00', end: '18:00', hasPause: false, pauseStart: '12:00', pauseEnd: '13:00' },
+            tuesday:   { active: true,  start: '08:00', end: '18:00', hasPause: false, pauseStart: '12:00', pauseEnd: '13:00' },
+            wednesday: { active: true,  start: '08:00', end: '18:00', hasPause: false, pauseStart: '12:00', pauseEnd: '13:00' },
+            thursday:  { active: true,  start: '08:00', end: '18:00', hasPause: false, pauseStart: '12:00', pauseEnd: '13:00' },
+            friday:    { active: true,  start: '08:00', end: '18:00', hasPause: false, pauseStart: '12:00', pauseEnd: '13:00' },
+            saturday:  { active: true,  start: '08:00', end: '14:00', hasPause: false, pauseStart: '12:00', pauseEnd: '13:00' },
+            sunday:    { active: false, start: '08:00', end: '18:00', hasPause: false, pauseStart: '12:00', pauseEnd: '13:00' },
+          },
+        },
+      });
+      barbers = [owner];
+    }
 
     const result = barbers.map((b) => ({
       ...b,
