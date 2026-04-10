@@ -326,7 +326,6 @@ export default function ServicesPage() {
             >Produtos</button>
           </div>
           <button
-            data-tour="services-add"
             onClick={() => activeTab === 'services' ? openServiceModal() : openProductModal()}
             className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-brand-accent text-white font-display font-black text-[10px] uppercase tracking-widest hover:bg-brand-accent/90 transition-all shadow-[0_0_20px_rgba(0,112,255,0.4)]"
           >

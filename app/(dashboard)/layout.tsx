@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
-import { TourOverlay } from '@/components/TourOverlay';
 import { useAuth } from '@/components/AuthProvider';
 import { useRouter, usePathname } from 'next/navigation';
 import { Menu, X, LogOut, Bell, Sun, Moon, LayoutDashboard, CalendarDays, DollarSign, Scissors } from 'lucide-react';
@@ -114,9 +113,6 @@ function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
           {children}
         </div>
       </main>
-
-      {/* Tour guiado — só para Proprietário */}
-      {userRole !== 'Barbeiro' && user?.id && <TourOverlay userId={user.id} />}
 
       {/* Bottom Nav — Mobile only */}
       <nav
