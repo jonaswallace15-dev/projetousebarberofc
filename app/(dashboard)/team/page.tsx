@@ -456,11 +456,9 @@ export default function TeamPage() {
     const init = async () => {
       try {
         const barbers = await supabaseService.getBarbers();
-        setTeam(barbers);
-        setLoading(false);
 
-        // Cria card do proprietário em background se não existir
         if (barbers.length === 0) {
+          // Cria card do proprietário automaticamente
           const res = await fetch('/api/barbers', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -477,10 +475,15 @@ export default function TeamPage() {
           if (res.ok) {
             const owner = await res.json();
             setTeam([owner]);
+          } else {
+            setTeam([]);
           }
+        } else {
+          setTeam(barbers);
         }
       } catch {
         setTeam([]);
+      } finally {
         setLoading(false);
       }
     };
