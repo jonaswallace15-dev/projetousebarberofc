@@ -454,23 +454,31 @@ export default function TeamPage() {
   useEffect(() => {
     if (!user) return;
     const init = async () => {
-      const barbers = await supabaseService.getBarbers();
-      if (barbers.length === 0) {
-        // Cria automaticamente o card do proprietário
-        const owner = await supabaseService.upsertBarber({
-          name: user.name || user.email?.split('@')[0] || 'Proprietário',
-          role: 'Dono / Master',
-          commission: 100,
-          commissionType: 'percentage',
-          avatar: '',
-          services: [],
-          schedule: defaultSchedule,
-        } as any);
-        setTeam([owner]);
-      } else {
-        setTeam(barbers);
+      try {
+        const barbers = await supabaseService.getBarbers();
+        if (barbers.length === 0) {
+          try {
+            const owner = await supabaseService.upsertBarber({
+              name: user.name || user.email?.split('@')[0] || 'Proprietário',
+              role: 'Dono / Master',
+              commission: 100,
+              commissionType: 'percentage',
+              avatar: '',
+              services: [],
+              schedule: defaultSchedule,
+            } as any);
+            setTeam([owner]);
+          } catch {
+            setTeam([]);
+          }
+        } else {
+          setTeam(barbers);
+        }
+      } catch {
+        setTeam([]);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     init();
   }, [user]);
