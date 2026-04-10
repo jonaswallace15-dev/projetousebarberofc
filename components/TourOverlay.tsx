@@ -9,7 +9,7 @@ interface Rect { top: number; left: number; width: number; height: number; }
 
 const PAD = 10;
 
-export function TourOverlay() {
+export function TourOverlay({ userId }: { userId: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const [active, setActive] = useState(false);
@@ -19,18 +19,22 @@ export function TourOverlay() {
   const [arrowSide, setArrowSide] = useState<'top' | 'bottom'>('top');
   const rafRef = useRef<number>();
 
+  // Chaves vinculadas ao userId — resetam com nova conta
+  const DONE_KEY = `${TOUR_DONE_KEY}_${userId}`;
+  const STEP_KEY = `${TOUR_STORAGE_KEY}_${userId}`;
+
   const step = TOUR_STEPS[stepIndex];
   const total = TOUR_STEPS.length;
 
   // Check if tour should be active on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (localStorage.getItem(TOUR_DONE_KEY)) return;
-    const saved = localStorage.getItem(TOUR_STORAGE_KEY);
+    if (localStorage.getItem(DONE_KEY)) return;
+    const saved = localStorage.getItem(STEP_KEY);
     const idx = saved !== null ? parseInt(saved) : 0;
     setStepIndex(isNaN(idx) ? 0 : Math.min(idx, TOUR_STEPS.length - 1));
     setActive(true);
-  }, []);
+  }, [userId]);
 
   // Reset rect when page changes so we recompute
   useEffect(() => {
@@ -97,11 +101,10 @@ export function TourOverlay() {
   const goNext = () => {
     const next = stepIndex + 1;
     if (next >= total) { finish(); return; }
-    localStorage.setItem(TOUR_STORAGE_KEY, String(next));
+    localStorage.setItem(STEP_KEY, String(next));
     setStepIndex(next);
     setRect(null);
     setTooltipPos(null);
-    // Navigate to next step's page
     const nextStep = TOUR_STEPS[next];
     if (nextStep && pathname !== nextStep.page) {
       router.push(nextStep.page);
@@ -110,7 +113,7 @@ export function TourOverlay() {
 
   const goPrev = () => {
     const prev = Math.max(0, stepIndex - 1);
-    localStorage.setItem(TOUR_STORAGE_KEY, String(prev));
+    localStorage.setItem(STEP_KEY, String(prev));
     setStepIndex(prev);
     setRect(null);
     setTooltipPos(null);
@@ -121,8 +124,8 @@ export function TourOverlay() {
   };
 
   const finish = () => {
-    localStorage.setItem(TOUR_DONE_KEY, '1');
-    localStorage.removeItem(TOUR_STORAGE_KEY);
+    localStorage.setItem(DONE_KEY, '1');
+    localStorage.removeItem(STEP_KEY);
     setActive(false);
     setRect(null);
     setTooltipPos(null);

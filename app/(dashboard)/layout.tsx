@@ -116,7 +116,7 @@ function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
       </main>
 
       {/* Tour guiado — só para Proprietário */}
-      {userRole !== 'Barbeiro' && <TourOverlay />}
+      {userRole !== 'Barbeiro' && user?.id && <TourOverlay userId={user.id} />}
 
       {/* Bottom Nav — Mobile only */}
       <nav

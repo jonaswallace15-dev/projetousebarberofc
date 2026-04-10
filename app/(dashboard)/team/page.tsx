@@ -453,41 +453,10 @@ export default function TeamPage() {
 
   useEffect(() => {
     if (!user) return;
-    const init = async () => {
-      try {
-        const barbers = await supabaseService.getBarbers();
-
-        if (barbers.length === 0) {
-          // Cria card do proprietário automaticamente
-          const res = await fetch('/api/barbers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: user.name || user.email?.split('@')[0] || 'Proprietário',
-              role: 'Dono / Master',
-              commission: 100,
-              commissionType: 'percentage',
-              avatar: '',
-              services: [],
-              schedule: defaultSchedule,
-            }),
-          });
-          if (res.ok) {
-            const owner = await res.json();
-            setTeam([owner]);
-          } else {
-            setTeam([]);
-          }
-        } else {
-          setTeam(barbers);
-        }
-      } catch {
-        setTeam([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    init();
+    supabaseService.getBarbers()
+      .then(setTeam)
+      .catch(() => setTeam([]))
+      .finally(() => setLoading(false));
   }, [user]);
 
   const openModal = (barber?: Barber) => {
