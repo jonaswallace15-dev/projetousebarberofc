@@ -31,12 +31,12 @@ export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
     const existing = await prisma.config.findUnique({ where: { userId: session.user.id } });
-    const currentData = (existing?.data as object) ?? {};
+    if (!existing) return NextResponse.json({ ok: true });
 
-    await prisma.config.upsert({
+    const currentData = (existing.data as object) ?? {};
+    await prisma.config.update({
       where: { userId: session.user.id },
-      update: { data: { ...currentData, ...body } },
-      create: { userId: session.user.id, slug: null, data: body },
+      data: { data: { ...currentData, ...body } },
     });
     return NextResponse.json({ ok: true });
   } catch (err: any) {
