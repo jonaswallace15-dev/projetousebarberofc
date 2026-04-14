@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Clock, Star, ChevronRight, CheckCircle2, MapPin, Instagram, Smartphone } from 'lucide-react';
+import { Clock, Star, ChevronRight, CheckCircle2, MapPin, Instagram, Smartphone } from 'lucide-react';
 import { supabaseService } from '@/services/supabaseService';
 import { useUI } from '@/components/UIProvider';
 import { isValidEmail, isValidCPF, maskCPF } from '@/lib/validators';
@@ -31,6 +31,7 @@ export default function BookingPage({ params }: PageProps) {
   const pendingAppointmentRef = useRef<(Partial<Appointment> & { user_id?: string }) | null>(null);
   const [isSubscriber, setIsSubscriber] = useState(false);
   const [subscriberPlan, setSubscriberPlan] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
 
   const [bookingData, setBookingData] = useState({
     serviceId: '',
@@ -291,6 +292,42 @@ export default function BookingPage({ params }: PageProps) {
   const currentSchedule = selectedBarber?.schedule?.[dayKey] || businessInfo?.working_hours?.[longName] || businessInfo?.workingHours?.[longName];
   const isClosed = !currentSchedule || currentSchedule.active === false || currentSchedule.closed;
 
+  // Auto-avança para o próximo dia útil quando o expediente de hoje já encerrou
+  useEffect(() => {
+    if (step !== 4) return;
+    const now = new Date();
+    const todayStr = [now.getFullYear(), String(now.getMonth()+1).padStart(2,'0'), String(now.getDate()).padStart(2,'0')].join('-');
+    if (bookingData.date !== todayStr) return;
+
+    const dayKeysList = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    const barber = barbers.find(b => b.id === bookingData.barberId);
+
+    const isTodayOver = () => {
+      const todayKey = dayKeysList[now.getDay()];
+      const sched = barber?.schedule?.[todayKey] || businessInfo?.working_hours?.[longName] || businessInfo?.workingHours?.[longName];
+      if (!sched || sched.active === false || (sched as any).closed) return true;
+      const [endH, endM] = ((sched as any).end || '18:00').split(':').map(Number);
+      const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), endH, endM, 0);
+      return now >= endTime;
+    };
+
+    if (!isTodayOver()) return;
+
+    // Encontra o próximo dia com expediente aberto
+    const next = new Date(now);
+    for (let i = 1; i <= 14; i++) {
+      next.setDate(now.getDate() + i);
+      const key = dayKeysList[next.getDay()];
+      const sched = barber?.schedule?.[key];
+      if (!sched || sched.active === false || (sched as any).closed) continue;
+      const nextStr = [next.getFullYear(), String(next.getMonth()+1).padStart(2,'0'), String(next.getDate()).padStart(2,'0')].join('-');
+      setBookingData(d => ({ ...d, date: nextStr, time: '' }));
+      setCalendarMonth(new Date(next.getFullYear(), next.getMonth(), 1));
+      return;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, bookingData.barberId, barbers, businessInfo]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--brand-deep)' }}>
@@ -515,17 +552,86 @@ export default function BookingPage({ params }: PageProps) {
 
             <div className="space-y-4">
               <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-[0.3em] px-2">Data</label>
-              <div className="relative group">
-                <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 text-brand-accent" size={20} />
-                <input
-                  type="date"
-                  min={(() => { const d = new Date(); return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-'); })()}
-                  value={bookingData.date}
-                  onChange={e => setBookingData(d => ({ ...d, date: e.target.value, time: '' }))}
-                  className="w-full rounded-[2rem] pl-16 pr-8 py-5 text-brand-main outline-none font-mono font-black transition-all"
-                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
-                />
-              </div>
+              {/* Inline Calendar */}
+              {(() => {
+                const today = new Date();
+                const todayStr = [today.getFullYear(), String(today.getMonth()+1).padStart(2,'0'), String(today.getDate()).padStart(2,'0')].join('-');
+                const year = calendarMonth.getFullYear();
+                const month = calendarMonth.getMonth();
+                const firstDayOfWeek = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const prevMonth = () => setCalendarMonth(new Date(year, month - 1, 1));
+                const nextMonth = () => setCalendarMonth(new Date(year, month + 1, 1));
+                const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                const dayKeys = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+                const cells: ({ day: number; dateStr: string; isPast: boolean; isClosed: boolean } | null)[] = [];
+                for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
+                for (let d = 1; d <= daysInMonth; d++) {
+                  const dateStr = [year, String(month+1).padStart(2,'0'), String(d).padStart(2,'0')].join('-');
+                  const isPast = dateStr < todayStr;
+                  const dayKey = dayKeys[new Date(year, month, d).getDay()];
+                  const sched = selectedBarber?.schedule?.[dayKey];
+                  const isClosed = !!sched && (sched.active === false || (sched as any).closed === true);
+                  cells.push({ day: d, dateStr, isPast, isClosed });
+                }
+                const canGoPrev = new Date(year, month, 1) > new Date(today.getFullYear(), today.getMonth(), 1);
+                return (
+                  <div className="rounded-[2rem] overflow-hidden" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--card-border)' }}>
+                      <button type="button" onClick={prevMonth} disabled={!canGoPrev}
+                        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-30"
+                        style={{ background: 'var(--card-bg)' }}>
+                        <iconify-icon icon="solar:arrow-left-bold-duotone" class="text-lg text-brand-accent" />
+                      </button>
+                      <span className="font-display font-black text-brand-main uppercase tracking-tight text-base">
+                        {monthNames[month]} <span className="text-brand-accent">{year}</span>
+                      </span>
+                      <button type="button" onClick={nextMonth}
+                        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+                        style={{ background: 'var(--card-bg)' }}>
+                        <iconify-icon icon="solar:arrow-right-bold-duotone" class="text-lg text-brand-accent" />
+                      </button>
+                    </div>
+                    {/* Day names */}
+                    <div className="grid grid-cols-7 px-3 pt-3">
+                      {['D','S','T','Q','Q','S','S'].map((d, i) => (
+                        <div key={i} className="text-center text-[10px] font-mono font-black uppercase tracking-widest pb-2" style={{ color: 'var(--text-muted)' }}>{d}</div>
+                      ))}
+                    </div>
+                    {/* Day cells */}
+                    <div className="grid grid-cols-7 gap-1 px-3 pb-4">
+                      {cells.map((cell, i) => {
+                        if (!cell) return <div key={`empty-${i}`} />;
+                        const isSelected = bookingData.date === cell.dateStr;
+                        const isToday = cell.dateStr === todayStr;
+                        const disabled = cell.isPast || cell.isClosed;
+                        return (
+                          <button
+                            key={cell.dateStr}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => setBookingData(d => ({ ...d, date: cell.dateStr, time: '' }))}
+                            className={`relative h-10 w-full rounded-xl font-mono font-black text-sm transition-all ${
+                              isSelected
+                                ? 'bg-brand-accent text-white shadow-[0_0_16px_rgba(0,112,255,0.4)]'
+                                : disabled
+                                  ? 'opacity-25 cursor-not-allowed'
+                                  : 'hover:bg-brand-accent/20 hover:text-brand-accent'
+                            }`}
+                            style={!isSelected && !disabled ? { color: isToday ? 'var(--brand-accent)' : 'var(--text-main)' } : undefined}
+                          >
+                            {cell.day}
+                            {isToday && !isSelected && (
+                              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-accent" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="space-y-4">
