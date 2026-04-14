@@ -30,17 +30,30 @@ export function ThemeProvider({ children, userId }: { children: React.ReactNode;
 
   useEffect(() => {
     const key = getStorageKey(userId);
-    const saved = localStorage.getItem(key) as Theme | null;
-    const preferred = saved ?? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-    applyTheme(preferred);
-    setTheme(preferred);
-    // Sincroniza tema do localStorage com o banco ao carregar
+    // Aplica localStorage imediatamente para evitar flash
+    const cached = localStorage.getItem(key) as Theme | null;
+    if (cached) { applyTheme(cached); setTheme(cached); }
+
     if (userId) {
-      fetch('/api/config', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ theme: preferred }),
-      }).catch(() => {});
+      // Banco é a fonte de verdade — busca e sincroniza
+      fetch('/api/config')
+        .then(r => r.json())
+        .then(data => {
+          const dbTheme: Theme = data?.theme === 'light' ? 'light' : 'dark';
+          applyTheme(dbTheme);
+          setTheme(dbTheme);
+          localStorage.setItem(key, dbTheme);
+        })
+        .catch(() => {
+          // Se falhar, usa localStorage ou padrão do sistema
+          const preferred = cached ?? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+          applyTheme(preferred);
+          setTheme(preferred as Theme);
+        });
+    } else {
+      const preferred = cached ?? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      applyTheme(preferred as Theme);
+      setTheme(preferred as Theme);
     }
   }, [userId]);
 
