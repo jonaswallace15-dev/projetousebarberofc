@@ -34,6 +34,14 @@ export function ThemeProvider({ children, userId }: { children: React.ReactNode;
     const preferred = saved ?? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
     applyTheme(preferred);
     setTheme(preferred);
+    // Sincroniza tema do localStorage com o banco ao carregar
+    if (userId) {
+      fetch('/api/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: preferred }),
+      }).catch(() => {});
+    }
   }, [userId]);
 
   // Quando sair do dashboard, restaura dark na landing page
