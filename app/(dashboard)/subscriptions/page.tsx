@@ -31,7 +31,7 @@ export default function SubscriptionsPage() {
 
   // Charge modal
   const [chargeModal, setChargeModal] = useState<SubscriptionPlan | null>(null);
-  const [chargeForm, setChargeForm] = useState({ name: '', phone: '', email: '', taxId: '', billingDay: 10 });
+  const [chargeForm, setChargeForm] = useState({ name: '', phone: '', email: '', taxId: '', billingDay: '' });
   const [charging, setCharging] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -69,14 +69,14 @@ export default function SubscriptionsPage() {
           clientEmail: chargeForm.email,
           clientCpf: chargeForm.taxId,
           billingType: 'CREDIT_CARD',
-          billingDay: chargeForm.billingDay,
+          billingDay: chargeForm.billingDay ? Number(chargeForm.billingDay) : 10,
         }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'Erro ao gerar cobrança');
       window.open(data.url, '_blank');
       setChargeModal(null);
-      setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: 10 });
+      setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: '' });
     } catch (err: any) {
       toast(err.message || 'Erro ao gerar cobrança', 'error');
     } finally {
@@ -242,7 +242,7 @@ export default function SubscriptionsPage() {
                     </button>
 
                     <button
-                      onClick={() => { setChargeModal(plan); setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: 10 }); }}
+                      onClick={() => { setChargeModal(plan); setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: '' }); }}
                       title="Gerar cobrança"
                       className="flex flex-col items-center gap-1.5 py-3 rounded-2xl text-brand-muted hover:text-brand-accent transition-all text-[9px] font-mono font-black uppercase tracking-widest"
                       style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}
@@ -437,15 +437,21 @@ export default function SubscriptionsPage() {
 
               {/* Dia de vencimento */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Dia de vencimento (1–28)</label>
+                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Dia de vencimento</label>
                 <input
-                  type="number" min="1" max="28"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Ex: 10"
                   value={chargeForm.billingDay}
-                  onChange={e => setChargeForm(p => ({ ...p, billingDay: Math.min(28, Math.max(1, Number(e.target.value) || 10)) }))}
+                  onChange={e => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    const num = Number(raw);
+                    if (raw === '' || (num >= 1 && num <= 28)) setChargeForm(p => ({ ...p, billingDay: raw }));
+                  }}
                   className="w-full rounded-2xl px-4 py-3 text-brand-main font-mono font-bold outline-none text-sm transition-all"
                   style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
                 />
-                <p className="text-[10px] font-mono text-brand-muted">A cobrança vai repetir todo mês nesse dia.</p>
+                <p className="text-[10px] font-mono text-brand-muted">Dia do mês (1–28) em que o cliente será cobrado.</p>
               </div>
 
               <button type="submit" disabled={charging}
