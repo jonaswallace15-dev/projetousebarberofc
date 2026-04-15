@@ -31,6 +31,7 @@ export default function BookingPage({ params }: PageProps) {
   const pendingAppointmentRef = useRef<(Partial<Appointment> & { user_id?: string }) | null>(null);
   const [isSubscriber, setIsSubscriber] = useState(false);
   const [subscriberPlan, setSubscriberPlan] = useState<string | null>(null);
+  const [checkingSubscription, setCheckingSubscription] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
 
   const [bookingData, setBookingData] = useState({
@@ -50,6 +51,7 @@ export default function BookingPage({ params }: PageProps) {
   const checkSubscription = async (cpf: string, uid: string) => {
     const cleaned = cpf.replace(/\D/g, '');
     if (cleaned.length !== 11) { setIsSubscriber(false); setSubscriberPlan(null); return; }
+    setCheckingSubscription(true);
     try {
       const res = await fetch(`/api/public/check-subscription?userId=${uid}&cpf=${cleaned}`);
       const data = await res.json();
@@ -58,6 +60,8 @@ export default function BookingPage({ params }: PageProps) {
     } catch {
       setIsSubscriber(false);
       setSubscriberPlan(null);
+    } finally {
+      setCheckingSubscription(false);
     }
   };
 
@@ -181,7 +185,7 @@ export default function BookingPage({ params }: PageProps) {
       if (fitsInSchedule && !isInBreak && !hasOverlap) {
         if (!isToday || current > now) slots.push(timeStr);
       }
-      current = new Date(current.getTime() + 30 * 60000);
+      current = new Date(current.getTime() + duration * 60000);
     }
     return slots;
   };
@@ -735,7 +739,7 @@ export default function BookingPage({ params }: PageProps) {
 
               <button
                 type="submit"
-                disabled={!bookingData.time || !bookingData.serviceId || !bookingData.barberId || isSubmitting}
+                disabled={!bookingData.time || !bookingData.serviceId || !bookingData.barberId || isSubmitting || checkingSubscription}
                 className="w-full rounded-[2.5rem] py-6 bg-brand-accent text-brand-main font-display font-black text-sm uppercase tracking-[0.3em] shadow-[0_20px_50px_rgba(0,112,255,0.25)] disabled:opacity-50 disabled:grayscale transition-all hover:-translate-y-1"
               >
                 {isSubmitting ? (

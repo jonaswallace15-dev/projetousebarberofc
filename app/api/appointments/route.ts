@@ -92,6 +92,30 @@ export async function POST(request: NextRequest) {
       price,
     } as any;
 
+    // Validação de conflito server-side (apenas para novos agendamentos)
+    if (!id && barberId && date && time) {
+      const service = serviceId ? await prisma.service.findFirst({ where: { id: serviceId, userId } }) : null;
+      const newDuration = service?.duration || 30;
+      const [newH, newM] = time.split(':').map(Number);
+      const newStart = newH * 60 + newM;
+      const newEnd = newStart + newDuration;
+
+      const existingAppts = await prisma.appointment.findMany({
+        where: { barberId, date, status: { notIn: ['Cancelado'] } },
+        select: { time: true, serviceId: true },
+      });
+
+      for (const appt of existingAppts) {
+        const [aH, aM] = appt.time.split(':').map(Number);
+        const aStart = aH * 60 + aM;
+        const aSvc = appt.serviceId ? await prisma.service.findFirst({ where: { id: appt.serviceId, userId } }) : null;
+        const aEnd = aStart + (aSvc?.duration || 30);
+        if (newStart < aEnd && aStart < newEnd) {
+          return NextResponse.json({ error: 'Horário indisponível. Já existe um agendamento neste período.' }, { status: 409 });
+        }
+      }
+    }
+
     let appointment;
     if (id) {
       appointment = await prisma.appointment.update({ where: { id }, data });
