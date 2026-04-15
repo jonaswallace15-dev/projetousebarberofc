@@ -134,13 +134,28 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Só credita se o cliente não for assinante ativo
     if (appointment.price && appointment.price > 0) {
-      await creditWallet(
-        appointment.userId,
-        appointment.price,
-        appointmentId,
-        `Pagamento PIX — ${appointment.serviceName} (${appointment.clientName})`,
-      );
+      const clientPhone2 = payment.customer?.phone || null;
+      let isSubscriberClient = false;
+      if (clientPhone2) {
+        const phoneDigits = clientPhone2.replace(/\D/g, '');
+        const clientRecord = await prisma.client.findFirst({ where: { userId: appointment.userId, phone: phoneDigits }, select: { id: true } });
+        if (clientRecord) {
+          const activeSub = await prisma.clientSubscription.findFirst({
+            where: { userId: appointment.userId, clientId: clientRecord.id, status: 'active' },
+          });
+          isSubscriberClient = !!activeSub;
+        }
+      }
+      if (!isSubscriberClient) {
+        await creditWallet(
+          appointment.userId,
+          appointment.price,
+          appointmentId,
+          `Pagamento PIX — ${appointment.serviceName} (${appointment.clientName})`,
+        );
+      }
     }
 
     const clientPhone = payment.customer?.phone || null;

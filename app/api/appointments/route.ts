@@ -164,17 +164,33 @@ export async function POST(request: NextRequest) {
       } catch (e) { console.error('[stock-decrement]', e); }
     }
 
-    // Creditar carteira apenas quando confirmado
+    // Creditar carteira apenas quando confirmado E o cliente não for assinante
     if (status === 'Confirmado') {
       const apptPrice = appointment.price ?? body.price ?? 0;
       if (apptPrice > 0) {
         try {
-          await creditWallet(
-            userId,
-            apptPrice,
-            appointment.id,
-            `Pagamento PIX — ${appointment.serviceName} (${appointment.clientName})`,
-          );
+          // Verifica se o cliente tem assinatura ativa — assinantes não geram crédito na carteira de PIX
+          let isSubscriberClient = false;
+          const phone = clientPhone ?? body.clientPhone ?? body.client_phone ?? null;
+          if (phone) {
+            const phoneDigits = phone.replace(/\D/g, '');
+            const clientRecord = await prisma.client.findFirst({ where: { userId, phone: phoneDigits }, select: { id: true } });
+            if (clientRecord) {
+              const activeSub = await prisma.clientSubscription.findFirst({
+                where: { userId, clientId: clientRecord.id, status: 'active' },
+              });
+              isSubscriberClient = !!activeSub;
+            }
+          }
+
+          if (!isSubscriberClient) {
+            await creditWallet(
+              userId,
+              apptPrice,
+              appointment.id,
+              `Pagamento PIX — ${appointment.serviceName} (${appointment.clientName})`,
+            );
+          }
         } catch (e) { console.error('[creditWallet]', e); }
       }
     }
