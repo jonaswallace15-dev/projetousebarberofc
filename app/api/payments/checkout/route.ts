@@ -28,7 +28,16 @@ async function findOrCreateAsaasCustomer(name: string, cpfCnpj: string, email: s
   const digits = cpfCnpj.replace(/\D/g, '');
   const search = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${digits}`, { headers: asaasHeaders() });
   const found = await asaasJson(search);
-  if (found.data?.length > 0) return found.data[0].id;
+  if (found.data?.length > 0) {
+    const existing = found.data[0];
+    // Atualiza os dados do cliente com as informações mais recentes
+    await fetch(`${ASAAS_URL}/customers/${existing.id}`, {
+      method: 'PUT',
+      headers: asaasHeaders(),
+      body: JSON.stringify({ name, email: email || undefined, phone: phone || undefined }),
+    });
+    return existing.id;
+  }
   const create = await fetch(`${ASAAS_URL}/customers`, {
     method: 'POST',
     headers: asaasHeaders(),
