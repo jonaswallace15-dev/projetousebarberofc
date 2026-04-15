@@ -104,6 +104,37 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: msg }, { status: 400 });
       }
 
+      // Imediatamente upsert do cliente com CPF para que check-subscription funcione
+      // sem depender do webhook do Asaas ser processado primeiro
+      if (cpfDigits && clientPhone) {
+        const phoneDigits = (clientPhone || '').replace(/\D/g, '');
+        try {
+          const existingByPhone = await prisma.client.findFirst({ where: { userId: plan.userId, phone: phoneDigits } });
+          if (existingByPhone) {
+            if (!existingByPhone.cpfCnpj) {
+              await prisma.client.update({ where: { id: existingByPhone.id }, data: { cpfCnpj: cpfDigits } });
+            }
+          } else {
+            const existingByCpf = await prisma.client.findFirst({ where: { userId: plan.userId, cpfCnpj: { contains: cpfDigits } } });
+            if (!existingByCpf) {
+              await prisma.client.create({
+                data: {
+                  userId: plan.userId,
+                  name: clientName || '',
+                  phone: phoneDigits,
+                  email: clientEmail || null,
+                  cpfCnpj: cpfDigits,
+                  tag: 'Novo',
+                  lastVisit: new Date().toISOString().slice(0, 10),
+                  totalSpent: 0,
+                  frequency: 0,
+                },
+              });
+            }
+          }
+        } catch (e) { console.error('[checkout-client-upsert]', e); }
+      }
+
       // Busca a primeira cobrança gerada automaticamente pela assinatura
       const paymentsRes = await fetch(`${ASAAS_URL}/payments?subscription=${sub.id}`, {
         headers: asaasHeaders(),

@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
             asaasSubscriptionId: payment.subscription || null,
             asaasPaymentId: payment.id,
             status: 'active',
+            cpfCnpj: clientCpf || null,
           },
         },
       });

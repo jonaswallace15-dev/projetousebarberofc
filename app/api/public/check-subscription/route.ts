@@ -21,6 +21,18 @@ export async function GET(request: NextRequest) {
     });
 
     if (!client) {
+      // Fallback: procura assinatura ativa cujos dados JSON contenham o CPF
+      const subByCpf = await prisma.clientSubscription.findFirst({
+        where: {
+          userId,
+          status: 'active',
+          data: { path: ['cpfCnpj'], equals: cpf },
+        },
+        include: { plan: { select: { name: true } } },
+      });
+      if (subByCpf) {
+        return NextResponse.json({ isSubscriber: true, planName: subByCpf.plan.name });
+      }
       return NextResponse.json({ isSubscriber: false });
     }
 
