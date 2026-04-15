@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // ── Pagamento de assinatura Asaas ─────────────────────────────────────
     if (externalReference.startsWith('SUB|')) {
-      const [, planId, userId, clientPhone] = externalReference.split('|');
+      const [, planId, userId, clientPhone, clientCpf] = externalReference.split('|');
       if (!planId || !userId) return NextResponse.json({ received: true });
 
       // Idempotência: verifica se já existe assinatura para este pagamento
@@ -43,11 +43,17 @@ export async function POST(request: NextRequest) {
             name: payment.customer?.name || 'Cliente',
             phone: clientPhone || '',
             email: payment.customer?.email || null,
+            cpfCnpj: clientCpf || null,
             tag: 'Novo',
             lastVisit: new Date().toISOString().slice(0, 10),
             totalSpent: 0,
             frequency: 0,
           },
+        });
+      } else if (clientCpf && !client.cpfCnpj) {
+        await prisma.client.update({
+          where: { id: client.id },
+          data: { cpfCnpj: clientCpf },
         });
       }
 

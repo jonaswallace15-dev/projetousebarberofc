@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     // ── Asaas Subscription Checkout ────────────────────────────────────
     if (action === 'create-asaas-checkout') {
       const { planId, clientName, clientEmail, clientPhone, clientCpf, billingDay } = body;
+      const cpfDigits = (clientCpf || '').replace(/\D/g, '');
 
       if (!clientCpf || clientCpf.replace(/\D/g, '').length !== 11) {
         return NextResponse.json({ error: 'CPF inválido' }, { status: 400 });
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
           nextDueDate: nextDueDate(billingDay ?? plan.billingDay ?? 10),
           cycle: 'MONTHLY',
           description: plan.name,
-          externalReference: `SUB|${plan.id}|${plan.userId}|${(clientPhone || '').replace(/\D/g, '')}`,
+          externalReference: `SUB|${plan.id}|${plan.userId}|${(clientPhone || '').replace(/\D/g, '')}|${cpfDigits}`,
         }),
       });
       const sub = await asaasJson(subRes);
