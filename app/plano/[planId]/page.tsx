@@ -19,6 +19,7 @@ export default function PlanCheckoutPage({ params }: PageProps) {
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', email: '', cpf: '' });
+  const [billingDay, setBillingDay] = useState<number | null>(null);
 
   useEffect(() => {
     if (!planId || planId === 'null') { setNotFound(true); setLoading(false); return; }
@@ -28,8 +29,11 @@ export default function PlanCheckoutPage({ params }: PageProps) {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
 
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pago') === '1') {
-      setSuccess(true);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('pago') === '1') setSuccess(true);
+      const dia = Number(params.get('dia'));
+      if (dia >= 1 && dia <= 28) setBillingDay(dia);
     }
   }, [planId]);
 
@@ -56,6 +60,7 @@ export default function PlanCheckoutPage({ params }: PageProps) {
           clientPhone: form.phone,
           clientCpf: form.cpf,
           billingType: 'CREDIT_CARD',
+          ...(billingDay ? { billingDay } : {}),
         }),
       });
       const data = await res.json();

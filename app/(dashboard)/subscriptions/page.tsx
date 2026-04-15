@@ -34,13 +34,19 @@ export default function SubscriptionsPage() {
   const [chargeForm, setChargeForm] = useState({ name: '', phone: '', email: '', taxId: '', billingDay: '' });
   const [charging, setCharging] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copyModal, setCopyModal] = useState<SubscriptionPlan | null>(null);
+  const [copyDay, setCopyDay] = useState('');
 
-  const getPlanLink = (plan: SubscriptionPlan) =>
-    typeof window !== 'undefined' ? `${window.location.origin}/plano/${plan.id}` : `/plano/${plan.id}`;
+  const getPlanLink = (plan: SubscriptionPlan, day?: string) => {
+    const base = typeof window !== 'undefined' ? `${window.location.origin}/plano/${plan.id}` : `/plano/${plan.id}`;
+    return day ? `${base}?dia=${day}` : base;
+  };
 
   const handleCopyLink = (plan: SubscriptionPlan) => {
-    navigator.clipboard.writeText(getPlanLink(plan));
+    navigator.clipboard.writeText(getPlanLink(plan, copyDay || undefined));
     setCopiedId(plan.id);
+    setCopyModal(null);
+    setCopyDay('');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -232,7 +238,7 @@ export default function SubscriptionsPage() {
                   {/* Action buttons */}
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      onClick={() => handleCopyLink(plan)}
+                      onClick={() => { setCopyModal(plan); setCopyDay(''); }}
                       title="Copiar link"
                       className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl transition-all text-[9px] font-mono font-black uppercase tracking-widest ${copiedId === plan.id ? 'bg-brand-success/15 text-brand-success border border-brand-success/30' : 'text-brand-muted hover:text-brand-accent'}`}
                       style={copiedId !== plan.id ? { background: 'var(--input-bg)', border: '1px solid var(--card-border)' } : {}}
@@ -371,6 +377,46 @@ export default function SubscriptionsPage() {
           </div>
         )}
       </div>
+
+      {/* Copy link modal */}
+      {copyModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl">
+          <div className="w-full max-w-sm rounded-[2.5rem] p-8 space-y-6" style={{ background: 'var(--header-bg)', border: '1px solid var(--card-border)' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-mono text-brand-muted uppercase tracking-widest mb-1">Copiar link do plano</p>
+                <h3 className="text-xl font-display font-black text-brand-main uppercase tracking-tight">{copyModal.name}</h3>
+              </div>
+              <button onClick={() => setCopyModal(null)} className="w-9 h-9 rounded-xl flex items-center justify-center text-brand-muted hover:text-brand-main transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+                <XIcon size={14} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Dia de vencimento (opcional)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Ex: 15"
+                value={copyDay}
+                onChange={e => {
+                  const raw = e.target.value.replace(/\D/g, '');
+                  const num = Number(raw);
+                  if (raw === '' || (num >= 1 && num <= 28)) setCopyDay(raw);
+                }}
+                className="w-full rounded-2xl px-4 py-3 text-brand-main font-mono font-bold outline-none text-sm transition-all"
+                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
+              />
+              <p className="text-[10px] font-mono text-brand-muted">Deixe em branco para o cliente escolher depois.</p>
+            </div>
+            <button
+              onClick={() => handleCopyLink(copyModal)}
+              className="w-full py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[12px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:opacity-90 transition-all"
+            >
+              <Link2 size={15} /> Copiar Link
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Charge modal */}
       {chargeModal && (
