@@ -77,11 +77,22 @@ export async function POST(request: NextRequest) {
       const existingSubsData = await asaasJson(existingSubsRes);
       const existingSub = existingSubsData.data?.find((s: any) => s.externalReference?.startsWith(`SUB|${plan.id}|`));
       if (existingSub) {
-        const existingPaymentsRes = await fetch(`${ASAAS_URL}/payments?subscription=${existingSub.id}`, { headers: asaasHeaders() });
-        const existingPaymentsData = await asaasJson(existingPaymentsRes);
-        const existingPayment = existingPaymentsData.data?.[0];
-        const existingUrl = existingPayment?.invoiceUrl || existingSub.paymentLink;
-        if (existingUrl) return NextResponse.json({ url: existingUrl });
+        const requestedDay = billingDay ?? plan.billingDay ?? 10;
+        // Extrai o dia de vencimento da assinatura existente
+        const existingDay = existingSub.nextDueDate
+          ? new Date(existingSub.nextDueDate + 'T12:00:00').getDate()
+          : null;
+        if (existingDay === requestedDay) {
+          // Mesmo dia de vencimento — retorna link existente (evita duplicata)
+          const existingPaymentsRes = await fetch(`${ASAAS_URL}/payments?subscription=${existingSub.id}`, { headers: asaasHeaders() });
+          const existingPaymentsData = await asaasJson(existingPaymentsRes);
+          const existingPayment = existingPaymentsData.data?.[0];
+          const existingUrl = existingPayment?.invoiceUrl || existingSub.paymentLink;
+          if (existingUrl) return NextResponse.json({ url: existingUrl });
+        } else {
+          // Dia diferente — cancela a antiga e cria nova com o dia correto
+          await fetch(`${ASAAS_URL}/subscriptions/${existingSub.id}`, { method: 'DELETE', headers: asaasHeaders() });
+        }
       }
 
       const subRes = await fetch(`${ASAAS_URL}/subscriptions`, {

@@ -35,8 +35,11 @@ export default function SubscriptionsPage() {
   const [charging, setCharging] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const getPlanLink = (plan: SubscriptionPlan) =>
-    typeof window !== 'undefined' ? `${window.location.origin}/plano/${plan.id}` : `/plano/${plan.id}`;
+  const getPlanLink = (plan: SubscriptionPlan) => {
+    const base = typeof window !== 'undefined' ? `${window.location.origin}/plano/${plan.id}` : `/plano/${plan.id}`;
+    const dia = plan.billingDay ?? 10;
+    return `${base}?dia=${dia}`;
+  };
 
   const handleCopyLink = (plan: SubscriptionPlan) => {
     navigator.clipboard.writeText(getPlanLink(plan));
