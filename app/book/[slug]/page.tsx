@@ -709,14 +709,6 @@ export default function BookingPage({ params }: PageProps) {
                   {bookingData.clientCpf && !isValidCPF(bookingData.clientCpf) && (
                     <p className="text-[10px] text-red-400 font-mono pl-4">CPF inválido</p>
                   )}
-                  {isSubscriber && subscriberPlan && (
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-2xl mt-1" style={{ background: 'rgba(0,200,100,0.1)', border: '1px solid rgba(0,200,100,0.3)' }}>
-                      <span className="text-green-400 text-base">✓</span>
-                      <p className="text-[11px] font-mono font-bold text-green-400 uppercase tracking-widest">
-                        Assinante — {subscriberPlan} · Agendamento gratuito
-                      </p>
-                    </div>
-                  )}
                 </div>
                 {/* E-mail com validação */}
                 <div className="space-y-1">
