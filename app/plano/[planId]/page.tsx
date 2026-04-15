@@ -192,6 +192,23 @@ export default function PlanCheckoutPage({ params }: PageProps) {
               style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${form.email && !isValidEmail(form.email) ? '#ef4444' : 'rgba(255,255,255,0.1)'}` }} />
             {form.email && !isValidEmail(form.email) && <p className="text-[10px] text-red-400 font-mono">E-mail inválido</p>}
           </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Dia de vencimento</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="Ex: 10"
+              value={billingDay ?? ''}
+              onChange={e => {
+                const raw = e.target.value.replace(/\D/g, '');
+                const num = Number(raw);
+                setBillingDay(raw === '' ? null : (num >= 1 && num <= 28 ? num : billingDay));
+              }}
+              className="w-full rounded-2xl px-5 py-4 text-white font-mono font-bold outline-none text-sm"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+            <p className="text-[10px] font-mono text-white/30">Dia do mês (1–28) em que sua mensalidade será cobrada.</p>
+          </div>
 
 
           <button
