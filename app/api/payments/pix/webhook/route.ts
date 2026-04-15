@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       const [, planId, userId, clientPhone, clientCpf] = externalReference.split('|');
       if (!planId || !userId) return NextResponse.json({ received: true });
 
-      // Idempotência: verifica se já existe assinatura para este pagamento
+      // Idempotência: verifica se já existe assinatura confirmada para este pagamento
       const alreadyExists = await prisma.clientSubscription.findFirst({
         where: { data: { path: ['asaasPaymentId'], equals: payment.id } },
       });
@@ -57,21 +57,41 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Cria ClientSubscription
-      await prisma.clientSubscription.create({
-        data: {
-          userId,
-          clientId: client.id,
-          planId,
-          data: {
-            subscribedAt: new Date().toISOString(),
-            asaasSubscriptionId: payment.subscription || null,
-            asaasPaymentId: payment.id,
-            status: 'active',
-            cpfCnpj: clientCpf || null,
-          },
-        },
+      // Confirma ClientSubscription existente (pending_payment → active) ou cria novo
+      const pendingSub = await prisma.clientSubscription.findFirst({
+        where: { userId, clientId: client.id, planId, status: 'pending_payment' },
       });
+
+      if (pendingSub) {
+        await prisma.clientSubscription.update({
+          where: { id: pendingSub.id },
+          data: {
+            status: 'active',
+            data: {
+              ...(pendingSub.data as object),
+              asaasPaymentId: payment.id,
+              asaasSubscriptionId: payment.subscription || null,
+              cpfCnpj: clientCpf || null,
+              confirmedAt: new Date().toISOString(),
+            },
+          },
+        });
+      } else {
+        await prisma.clientSubscription.create({
+          data: {
+            userId,
+            clientId: client.id,
+            planId,
+            status: 'active',
+            data: {
+              subscribedAt: new Date().toISOString(),
+              asaasSubscriptionId: payment.subscription || null,
+              asaasPaymentId: payment.id,
+              cpfCnpj: clientCpf || null,
+            },
+          },
+        });
+      }
 
       await prisma.subscriptionPlan.update({
         where: { id: planId },

@@ -115,36 +115,64 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: msg }, { status: 400 });
       }
 
-      // Imediatamente upsert do cliente com CPF para que check-subscription funcione
-      // sem depender do webhook do Asaas ser processado primeiro
-      if (cpfDigits && clientPhone) {
+      // Cria/atualiza cliente imediatamente após gerar a assinatura no Asaas
+      // Não depende do webhook nem exige telefone — CPF é suficiente
+      let localClientId: string | null = null;
+      try {
         const phoneDigits = (clientPhone || '').replace(/\D/g, '');
-        try {
-          const existingByPhone = await prisma.client.findFirst({ where: { userId: plan.userId, phone: phoneDigits } });
-          if (existingByPhone) {
-            if (!existingByPhone.cpfCnpj) {
-              await prisma.client.update({ where: { id: existingByPhone.id }, data: { cpfCnpj: cpfDigits } });
-            }
-          } else {
-            const existingByCpf = await prisma.client.findFirst({ where: { userId: plan.userId, cpfCnpj: { contains: cpfDigits } } });
-            if (!existingByCpf) {
-              await prisma.client.create({
-                data: {
-                  userId: plan.userId,
-                  name: clientName || '',
-                  phone: phoneDigits,
-                  email: clientEmail || null,
-                  cpfCnpj: cpfDigits,
-                  tag: 'Novo',
-                  lastVisit: new Date().toISOString().slice(0, 10),
-                  totalSpent: 0,
-                  frequency: 0,
-                },
-              });
-            }
+        let client = phoneDigits
+          ? await prisma.client.findFirst({ where: { userId: plan.userId, phone: phoneDigits } })
+          : await prisma.client.findFirst({ where: { userId: plan.userId, cpfCnpj: { contains: cpfDigits } } });
+
+        if (client) {
+          // Atualiza nome e CPF se faltavam
+          const updateData: any = {};
+          if (!client.cpfCnpj && cpfDigits) updateData.cpfCnpj = cpfDigits;
+          if (clientName && client.name !== clientName) updateData.name = clientName;
+          if (clientEmail && !client.email) updateData.email = clientEmail;
+          if (Object.keys(updateData).length > 0) {
+            await prisma.client.update({ where: { id: client.id }, data: updateData });
           }
-        } catch (e) { console.error('[checkout-client-upsert]', e); }
-      }
+          localClientId = client.id;
+        } else {
+          const created = await prisma.client.create({
+            data: {
+              userId: plan.userId,
+              name: clientName || '',
+              phone: phoneDigits || '',
+              email: clientEmail || null,
+              cpfCnpj: cpfDigits || null,
+              tag: 'Novo',
+              lastVisit: new Date().toISOString().slice(0, 10),
+              totalSpent: 0,
+              frequency: 0,
+            },
+          });
+          localClientId = created.id;
+        }
+
+        // Cria ClientSubscription como pending_payment — webhook confirma após pagamento
+        if (localClientId) {
+          const alreadyPending = await prisma.clientSubscription.findFirst({
+            where: { userId: plan.userId, clientId: localClientId, planId: plan.id },
+          });
+          if (!alreadyPending) {
+            await prisma.clientSubscription.create({
+              data: {
+                userId: plan.userId,
+                clientId: localClientId,
+                planId: plan.id,
+                status: 'pending_payment',
+                data: {
+                  asaasSubscriptionId: sub.id,
+                  cpfCnpj: cpfDigits || null,
+                  subscribedAt: new Date().toISOString(),
+                },
+              },
+            });
+          }
+        }
+      } catch (e) { console.error('[checkout-client-upsert]', e); }
 
       // Busca a primeira cobrança gerada automaticamente pela assinatura
       const paymentsRes = await fetch(`${ASAAS_URL}/payments?subscription=${sub.id}`, {
