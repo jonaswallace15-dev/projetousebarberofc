@@ -140,6 +140,7 @@ model SubscriptionPlan {
   price         Float
   benefits      Json    @default("[]")
   activeUsers   Int     @default(0) @map("active_users")
+  billingDay    Int?    @default(10) @map("billing_day")
   stripePriceId String? @map("stripe_price_id")
 
   user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)

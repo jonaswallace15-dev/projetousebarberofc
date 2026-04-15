@@ -13,6 +13,7 @@ const emptyPlan: Partial<SubscriptionPlan> = {
   price: 0,
   benefits: [],
   activeUsers: 0,
+  billingDay: 10,
 };
 
 export default function SubscriptionsPage() {
@@ -464,6 +465,18 @@ export default function SubscriptionsPage() {
                 <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Preço Mensal (R$)</label>
                 <input required type="number" min="0" step="0.01" value={form.price === 0 ? '' : form.price} placeholder="0" onChange={e => setForm(f => ({ ...f, price: e.target.value === '' ? 0 : Number(e.target.value) }))}
                   className="w-full rounded-2xl px-5 py-4 text-brand-main font-mono font-bold outline-none" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Dia de Cobrança (1–28)</label>
+                <input
+                  type="number" min="1" max="28"
+                  value={form.billingDay === undefined ? '' : form.billingDay}
+                  placeholder="10"
+                  onChange={e => setForm(f => ({ ...f, billingDay: e.target.value === '' ? 10 : Math.min(28, Math.max(1, Number(e.target.value))) }))}
+                  className="w-full rounded-2xl px-5 py-4 text-brand-main font-mono font-bold outline-none"
+                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
+                />
+                <p className="text-[10px] font-mono text-brand-muted px-1">Todo mês os assinantes serão cobrados nesse dia. Máx. 28.</p>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Benefícios (um por linha)</label>

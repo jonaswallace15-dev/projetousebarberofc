@@ -76,6 +76,7 @@ export interface SubscriptionPlan {
   price: number;
   benefits: string[];
   activeUsers: number;
+  billingDay?: number;
 }
 
 export interface Product {

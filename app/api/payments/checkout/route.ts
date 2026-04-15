@@ -15,10 +15,13 @@ async function asaasJson(res: Response) {
   try { return JSON.parse(text); } catch { throw new Error(`Asaas error (${res.status}): ${text.slice(0, 200)}`); }
 }
 
-function nextDueDate() {
-  const d = new Date();
-  d.setDate(d.getDate() + 10);
-  return d.toISOString().split('T')[0];
+function nextDueDate(billingDay: number = 10) {
+  const today = new Date();
+  const day = Math.min(28, Math.max(1, billingDay));
+  const candidate = new Date(today.getFullYear(), today.getMonth(), day);
+  // Se o dia já passou esse mês, usa o próximo mês
+  if (candidate <= today) candidate.setMonth(candidate.getMonth() + 1);
+  return candidate.toISOString().split('T')[0];
 }
 
 async function findOrCreateAsaasCustomer(name: string, cpfCnpj: string, email: string, phone: string): Promise<string> {
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
           customer: customerId,
           billingType: 'CREDIT_CARD',
           value: plan.price,
-          nextDueDate: nextDueDate(),
+          nextDueDate: nextDueDate(plan.billingDay ?? 10),
           cycle: 'MONTHLY',
           description: plan.name,
           externalReference: `SUB|${plan.id}|${plan.userId}|${(clientPhone || '').replace(/\D/g, '')}`,
