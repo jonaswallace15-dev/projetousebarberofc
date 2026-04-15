@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // ── Asaas Subscription Checkout ────────────────────────────────────
     if (action === 'create-asaas-checkout') {
-      const { planId, clientName, clientEmail, clientPhone, clientCpf } = body;
+      const { planId, clientName, clientEmail, clientPhone, clientCpf, billingDay } = body;
 
       if (!clientCpf || clientCpf.replace(/\D/g, '').length !== 11) {
         return NextResponse.json({ error: 'CPF inválido' }, { status: 400 });
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
           customer: customerId,
           billingType: 'CREDIT_CARD',
           value: plan.price,
-          nextDueDate: nextDueDate(plan.billingDay ?? 10),
+          nextDueDate: nextDueDate(billingDay ?? plan.billingDay ?? 10),
           cycle: 'MONTHLY',
           description: plan.name,
           externalReference: `SUB|${plan.id}|${plan.userId}|${(clientPhone || '').replace(/\D/g, '')}`,

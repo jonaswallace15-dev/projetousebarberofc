@@ -31,7 +31,7 @@ export default function SubscriptionsPage() {
 
   // Charge modal
   const [chargeModal, setChargeModal] = useState<SubscriptionPlan | null>(null);
-  const [chargeForm, setChargeForm] = useState({ name: '', phone: '', email: '', taxId: '' });
+  const [chargeForm, setChargeForm] = useState({ name: '', phone: '', email: '', taxId: '', billingDay: 10 });
   const [charging, setCharging] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -69,13 +69,14 @@ export default function SubscriptionsPage() {
           clientEmail: chargeForm.email,
           clientCpf: chargeForm.taxId,
           billingType: 'CREDIT_CARD',
+          billingDay: chargeForm.billingDay,
         }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'Erro ao gerar cobrança');
       window.open(data.url, '_blank');
       setChargeModal(null);
-      setChargeForm({ name: '', phone: '', email: '', taxId: '' });
+      setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: 10 });
     } catch (err: any) {
       toast(err.message || 'Erro ao gerar cobrança', 'error');
     } finally {
@@ -241,7 +242,7 @@ export default function SubscriptionsPage() {
                     </button>
 
                     <button
-                      onClick={() => { setChargeModal(plan); setChargeForm({ name: '', phone: '', email: '', taxId: '' }); }}
+                      onClick={() => { setChargeModal(plan); setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: 10 }); }}
                       title="Gerar cobrança"
                       className="flex flex-col items-center gap-1.5 py-3 rounded-2xl text-brand-muted hover:text-brand-accent transition-all text-[9px] font-mono font-black uppercase tracking-widest"
                       style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}
@@ -434,6 +435,19 @@ export default function SubscriptionsPage() {
               </div>
 
 
+              {/* Dia de vencimento */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Dia de vencimento (1–28)</label>
+                <input
+                  type="number" min="1" max="28"
+                  value={chargeForm.billingDay}
+                  onChange={e => setChargeForm(p => ({ ...p, billingDay: Math.min(28, Math.max(1, Number(e.target.value) || 10)) }))}
+                  className="w-full rounded-2xl px-4 py-3 text-brand-main font-mono font-bold outline-none text-sm transition-all"
+                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
+                />
+                <p className="text-[10px] font-mono text-brand-muted">A cobrança vai repetir todo mês nesse dia.</p>
+              </div>
+
               <button type="submit" disabled={charging}
                 className="w-full py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[12px] uppercase tracking-[0.2em] shadow-[0_0_25px_rgba(0,112,255,0.3)] hover:opacity-90 transition-all disabled:opacity-40 flex items-center justify-center gap-3 mt-2">
                 {charging
@@ -465,18 +479,6 @@ export default function SubscriptionsPage() {
                 <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Preço Mensal (R$)</label>
                 <input required type="number" min="0" step="0.01" value={form.price === 0 ? '' : form.price} placeholder="0" onChange={e => setForm(f => ({ ...f, price: e.target.value === '' ? 0 : Number(e.target.value) }))}
                   className="w-full rounded-2xl px-5 py-4 text-brand-main font-mono font-bold outline-none" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Dia de Cobrança (1–28)</label>
-                <input
-                  type="number" min="1" max="28"
-                  value={form.billingDay === undefined ? '' : form.billingDay}
-                  placeholder="10"
-                  onChange={e => setForm(f => ({ ...f, billingDay: e.target.value === '' ? 10 : Math.min(28, Math.max(1, Number(e.target.value))) }))}
-                  className="w-full rounded-2xl px-5 py-4 text-brand-main font-mono font-bold outline-none"
-                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
-                />
-                <p className="text-[10px] font-mono text-brand-muted px-1">Todo mês os assinantes serão cobrados nesse dia. Máx. 28.</p>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Benefícios (um por linha)</label>
