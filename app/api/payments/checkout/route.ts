@@ -72,6 +72,18 @@ export async function POST(request: NextRequest) {
         clientPhone || '',
       );
 
+      // Verifica se já existe assinatura ativa para este cliente neste plano
+      const existingSubsRes = await fetch(`${ASAAS_URL}/subscriptions?customer=${customerId}&status=ACTIVE`, { headers: asaasHeaders() });
+      const existingSubsData = await asaasJson(existingSubsRes);
+      const existingSub = existingSubsData.data?.find((s: any) => s.externalReference?.startsWith(`SUB|${plan.id}|`));
+      if (existingSub) {
+        const existingPaymentsRes = await fetch(`${ASAAS_URL}/payments?subscription=${existingSub.id}`, { headers: asaasHeaders() });
+        const existingPaymentsData = await asaasJson(existingPaymentsRes);
+        const existingPayment = existingPaymentsData.data?.[0];
+        const existingUrl = existingPayment?.invoiceUrl || existingSub.paymentLink;
+        if (existingUrl) return NextResponse.json({ url: existingUrl });
+      }
+
       const subRes = await fetch(`${ASAAS_URL}/subscriptions`, {
         method: 'POST',
         headers: asaasHeaders(),
