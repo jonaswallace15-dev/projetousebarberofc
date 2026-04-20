@@ -76,31 +76,21 @@ export default function BookingPage({ params }: PageProps) {
   useEffect(() => {
     const load = async () => {
       try {
-        const uid = await supabaseService.getUserIdBySlug(slug);
-        if (!uid) { setNotFound(true); setLoading(false); return; }
-        setUserId(uid);
+        const res = await fetch(`/api/public/booking-data?slug=${encodeURIComponent(slug)}`);
+        if (!res.ok) { setNotFound(true); setLoading(false); return; }
+        const data = await res.json();
+        if (data.notFound || !data.userId) { setNotFound(true); setLoading(false); return; }
 
-        const config = await fetch(`/api/config/slug?slug=${encodeURIComponent(slug)}`).then(r => r.json());
-        setBusinessInfo(config);
-        const ownerTheme: 'dark' | 'light' = config?.theme === 'light' ? 'light' : 'dark';
+        setUserId(data.userId);
+        setBusinessInfo(data.config);
+        const ownerTheme: 'dark' | 'light' = data.config?.theme === 'light' ? 'light' : 'dark';
         document.documentElement.classList.remove('dark', 'light');
         document.documentElement.classList.add(ownerTheme);
 
-        fetch(`/api/services?user_id=${uid}`).then(r => r.json())
-          .then(svcs => setServices(Array.isArray(svcs) ? svcs.filter((s: Service) => s.active !== false) : []))
-          .catch(() => setServices([]));
-
-        supabaseService.getBarbers(uid)
-          .then(brbs => setBarbers(Array.isArray(brbs) ? brbs : []))
-          .catch(() => setBarbers([]));
-
-        supabaseService.getProducts(uid)
-          .then(prods => setProducts(Array.isArray(prods) ? prods.filter((p: Product) => p.active !== false && p.stock > 0) : []))
-          .catch(() => setProducts([]));
-
-        supabaseService.getAppointments(uid)
-          .then(appts => setAppointments(Array.isArray(appts) ? appts : []))
-          .catch(() => setAppointments([]));
+        setServices(Array.isArray(data.services) ? data.services : []);
+        setBarbers(Array.isArray(data.barbers) ? data.barbers : []);
+        setProducts(Array.isArray(data.products) ? data.products : []);
+        setAppointments(Array.isArray(data.appointments) ? data.appointments : []);
 
       } catch {
         setNotFound(true);
