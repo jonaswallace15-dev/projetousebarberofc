@@ -62,16 +62,22 @@ export default function AdminPage() {
     }
   }, [userRole, loading, router]);
 
-  const handleWithdrawal = async (id: string, action: 'approve' | 'reject') => {
+  const handleWithdrawal = async (id: string, action: 'approve' | 'reject' | 'retry-pix') => {
     setProcessing(id);
     try {
-      await fetch('/api/admin/withdrawals', {
+      const res = await fetch('/api/admin/withdrawals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action }),
       });
+      const data = await res.json();
+      if (data.error) { alert(data.error); return; }
       const statusMap: Record<string, string> = { approve: 'Aprovado', reject: 'Rejeitado' };
-      setWithdrawals(prev => prev.map(w => w.id === id ? { ...w, status: statusMap[action] } : w));
+      setWithdrawals(prev => prev.map(w =>
+        w.id === id
+          ? { ...w, ...(statusMap[action] ? { status: statusMap[action] } : {}), notes: data.notes ?? w.notes }
+          : w
+      ));
     } finally { setProcessing(null); }
   };
 
@@ -787,13 +793,22 @@ export default function AdminPage() {
                             </button>
                           </div>
                         ) : w.status === 'Aprovado' ? (
-                          <button
-                            onClick={() => handleWithdrawal(w.id, 'reject')}
-                            disabled={processing === w.id}
-                            className="px-3 py-1.5 rounded-xl text-[9px] font-mono font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all disabled:opacity-50"
-                          >
-                            {processing === w.id ? '...' : 'Estornar'}
-                          </button>
+                          <div className="flex flex-col items-center gap-1.5">
+                            <button
+                              onClick={() => handleWithdrawal(w.id, 'retry-pix')}
+                              disabled={processing === w.id}
+                              className="px-3 py-1.5 rounded-xl text-[9px] font-mono font-black uppercase tracking-widest bg-brand-accent/10 text-brand-accent border border-brand-accent/20 hover:bg-brand-accent/20 transition-all disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {processing === w.id ? '...' : 'Retentar PIX'}
+                            </button>
+                            <button
+                              onClick={() => handleWithdrawal(w.id, 'reject')}
+                              disabled={processing === w.id}
+                              className="px-3 py-1.5 rounded-xl text-[9px] font-mono font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all disabled:opacity-50"
+                            >
+                              Estornar
+                            </button>
+                          </div>
                         ) : <span className="text-[9px] font-mono text-brand-muted">—</span>}
                       </td>
                     </tr>
