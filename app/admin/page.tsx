@@ -759,6 +759,14 @@ export default function AdminPage() {
                               Rejeitar
                             </button>
                           </div>
+                        ) : w.status === 'Aprovado' ? (
+                          <button
+                            onClick={() => handleWithdrawal(w.id, 'reject')}
+                            disabled={processing === w.id}
+                            className="px-3 py-1.5 rounded-xl text-[9px] font-mono font-black uppercase tracking-widest bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition-all disabled:opacity-50"
+                          >
+                            {processing === w.id ? '...' : 'Estornar'}
+                          </button>
                         ) : <span className="text-[9px] font-mono text-brand-muted">—</span>}
                       </td>
                     </tr>
