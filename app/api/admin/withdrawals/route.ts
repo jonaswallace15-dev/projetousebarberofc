@@ -16,18 +16,28 @@ function detectPixKeyType(key: string): string {
   return 'EVP'; // chave aleatória
 }
 
-async function getAsaasBalance(): Promise<number> {
-  if (!ASAAS_API_KEY) return 0;
-  const res = await fetch(`${ASAAS_URL}/finance/balance`, {
-    headers: { 'access_token': ASAAS_API_KEY },
-    signal: AbortSignal.timeout(8000),
-  });
-  const data = await res.json();
-  console.log('[Asaas Balance]', data);
-  return data.balance ?? 0;
+async function asaasJsonSafe(res: Response): Promise<any> {
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return { _raw: text.slice(0, 300), errors: [{ description: `Resposta inválida do Asaas (status ${res.status})` }] }; }
 }
 
-async function sendPixViaAsaas(pixKey: string, amount: number, description: string): Promise<{ success: boolean; transferId?: string; error?: string; actualAmount?: number }> {
+async function getAsaasBalance(): Promise<number> {
+  if (!ASAAS_API_KEY) return 0;
+  try {
+    const res = await fetch(`${ASAAS_URL}/finance/balance`, {
+      headers: { 'access_token': ASAAS_API_KEY },
+      signal: AbortSignal.timeout(8000),
+    });
+    const data = await asaasJsonSafe(res);
+    console.log('[Asaas Balance]', data);
+    return typeof data.balance === 'number' ? data.balance : 0;
+  } catch (e: any) {
+    console.error('[Asaas Balance Error]', e.message);
+    return 0;
+  }
+}
+
+async function sendPixViaAsaas(pixKey: string, amount: number, description: string): Promise<{ success: boolean; transferId?: string; error?: string }> {
   if (!ASAAS_API_KEY) return { success: false, error: 'Asaas API key não configurada' };
 
   const pixAddressKeyType = detectPixKeyType(pixKey.trim());
@@ -35,30 +45,29 @@ async function sendPixViaAsaas(pixKey: string, amount: number, description: stri
     ? pixKey.replace(/\D/g, '')
     : pixKey.trim();
 
-  const res = await fetch(`${ASAAS_URL}/transfers`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'access_token': ASAAS_API_KEY,
-    },
-    body: JSON.stringify({
-      value: amount,
-      pixAddressKey,
-      pixAddressKeyType,
-      description,
-    }),
-    signal: AbortSignal.timeout(8000),
-  });
+  try {
+    const res = await fetch(`${ASAAS_URL}/transfers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': ASAAS_API_KEY,
+      },
+      body: JSON.stringify({ value: amount, pixAddressKey, pixAddressKeyType, description }),
+      signal: AbortSignal.timeout(8000),
+    });
 
-  const data = await res.json();
-  console.log('[Asaas Transfer] status:', res.status, 'body:', JSON.stringify(data));
+    const data = await asaasJsonSafe(res);
+    console.log('[Asaas Transfer] status:', res.status, 'body:', JSON.stringify(data));
 
-  if (!res.ok || data.errors?.length) {
-    const msg = data.errors?.[0]?.description || data.error || 'Erro ao transferir via Asaas';
-    return { success: false, error: msg };
+    if (!res.ok || data.errors?.length) {
+      const msg = data.errors?.[0]?.description || data.error || `Erro Asaas status ${res.status}`;
+      return { success: false, error: msg };
+    }
+
+    return { success: true, transferId: data.id };
+  } catch (e: any) {
+    return { success: false, error: e.message || 'Timeout ou erro de conexão com Asaas' };
   }
-
-  return { success: true, transferId: data.id };
 }
 
 export async function GET() {
