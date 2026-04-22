@@ -40,10 +40,15 @@ async function getAsaasBalance(): Promise<number> {
 async function sendPixViaAsaas(pixKey: string, amount: number, description: string): Promise<{ success: boolean; transferId?: string; error?: string }> {
   if (!ASAAS_API_KEY) return { success: false, error: 'Asaas API key não configurada' };
 
-  const pixAddressKeyType = detectPixKeyType(pixKey.trim());
+  const cleanKey = pixKey.trim();
+  if (!cleanKey || cleanKey.toLowerCase() === 'a definir pelo admin') {
+    return { success: false, error: 'Chave PIX não definida pelo barbeiro' };
+  }
+
+  const pixAddressKeyType = detectPixKeyType(cleanKey);
   const pixAddressKey = pixAddressKeyType === 'CPF' || pixAddressKeyType === 'CNPJ' || pixAddressKeyType === 'PHONE'
-    ? pixKey.replace(/\D/g, '')
-    : pixKey.trim();
+    ? cleanKey.replace(/\D/g, '')
+    : cleanKey;
 
   try {
     const res = await fetch(`${ASAAS_URL}/transfers`, {
@@ -52,7 +57,7 @@ async function sendPixViaAsaas(pixKey: string, amount: number, description: stri
         'Content-Type': 'application/json',
         'access_token': ASAAS_API_KEY,
       },
-      body: JSON.stringify({ value: amount, pixAddressKey, pixAddressKeyType, description }),
+      body: JSON.stringify({ operationType: 'PIX', value: amount, pixAddressKey, pixAddressKeyType, description }),
       signal: AbortSignal.timeout(8000),
     });
 

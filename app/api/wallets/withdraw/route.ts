@@ -18,12 +18,11 @@ export async function POST(request: NextRequest) {
     const validTypes = ['subscription', 'barbershop', 'barber'];
     const type = validTypes.includes(walletType) ? walletType : 'barbershop';
 
-    // Chave PIX obrigatória apenas para carteiras que não são de assinatura
-    if (type !== 'subscription' && !pixKey?.trim()) {
+    if (!pixKey?.trim()) {
       return NextResponse.json({ error: 'Chave PIX obrigatória' }, { status: 400 });
     }
 
-    const finalPixKey = pixKey?.trim() || 'A definir pelo admin';
+    const finalPixKey = pixKey.trim();
 
     const withdrawal = await prisma.$transaction(async (tx) => {
       const wallet = await tx.wallet.findFirst({ where: { userId, type } });
