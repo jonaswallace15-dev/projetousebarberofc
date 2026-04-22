@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 
-const ASAAS_URL = process.env.ASAAS_URL || 'https://api-sandbox.asaas.com/v3';
+const ASAAS_URL = process.env.ASAAS_URL || 'https://api.asaas.com/v3';
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY
   ? (process.env.ASAAS_API_KEY.startsWith('$') ? process.env.ASAAS_API_KEY : `$${process.env.ASAAS_API_KEY}`)
   : undefined;
@@ -20,6 +20,7 @@ async function getAsaasBalance(): Promise<number> {
   if (!ASAAS_API_KEY) return 0;
   const res = await fetch(`${ASAAS_URL}/finance/balance`, {
     headers: { 'access_token': ASAAS_API_KEY },
+    signal: AbortSignal.timeout(8000),
   });
   const data = await res.json();
   console.log('[Asaas Balance]', data);
@@ -46,6 +47,7 @@ async function sendPixViaAsaas(pixKey: string, amount: number, description: stri
       pixAddressKeyType,
       description,
     }),
+    signal: AbortSignal.timeout(8000),
   });
 
   const data = await res.json();
