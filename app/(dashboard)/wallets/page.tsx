@@ -57,9 +57,8 @@ export default function WalletsPage() {
   const handleWithdraw = async () => {
     if (!withdrawModal) return;
     const amount = parseFloat(withdrawForm.amount.replace(',', '.'));
-    const isSubscription = withdrawModal.wallet.type === 'subscription';
     if (!amount || amount <= 0) return;
-    if (!isSubscription && !withdrawForm.pixKey.trim()) return;
+    if (!withdrawForm.pixKey.trim()) return;
     setWithdrawing(true);
     try {
       const res = await fetch('/api/wallets/withdraw', {
@@ -67,7 +66,7 @@ export default function WalletsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount,
-          pixKey: isSubscription ? '' : withdrawForm.pixKey.trim(),
+          pixKey: withdrawForm.pixKey.trim(),
           walletType: withdrawModal.wallet.type,
         }),
       });
@@ -75,7 +74,7 @@ export default function WalletsPage() {
       if (data.error) { toast(data.error, 'error'); return; }
       setWithdrawModal(null);
       setWithdrawForm({ amount: '', pixKey: '' });
-      toast(isSubscription ? 'Saque realizado com sucesso!' : 'Saque solicitado com sucesso!', 'success');
+      toast('Saque solicitado com sucesso!', 'success');
       loadData();
     } catch { toast('Erro ao solicitar saque.', 'error'); }
     finally { setWithdrawing(false); }
@@ -103,16 +102,18 @@ export default function WalletsPage() {
       </header>
 
       {/* Total balance */}
-      <div className="flashlight-card p-10 rounded-[3.5rem] relative overflow-hidden">
-        <div className="absolute -top-10 -right-10 w-64 h-64 bg-brand-accent/5 rounded-full blur-3xl pointer-events-none" />
-        <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest font-black mb-3">Saldo Total Consolidado</p>
-        <div className="text-6xl font-display font-black text-brand-accent tracking-tighter">
-          <span className="text-2xl mr-2 opacity-50">R$</span>
-          {totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+      <div className="flashlight-card px-8 py-6 rounded-[2rem] relative overflow-hidden flex items-center justify-between">
+        <div className="absolute -top-8 -right-8 w-48 h-48 bg-brand-accent/5 rounded-full blur-3xl pointer-events-none" />
+        <div>
+          <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest font-black mb-1">Saldo Total Consolidado</p>
+          <div className="text-4xl font-display font-black text-brand-accent tracking-tighter">
+            <span className="text-base mr-1 opacity-50">R$</span>
+            {totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </div>
         </div>
-        <div className="mt-6 flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-brand-success animate-pulse" />
-          <span className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">{wallets.length} carteira{wallets.length !== 1 ? 's' : ''} ativa{wallets.length !== 1 ? 's' : ''}</span>
+          <span className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">{wallets.length} ativa{wallets.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
 
@@ -124,22 +125,23 @@ export default function WalletsPage() {
           <p className="text-brand-muted text-sm leading-relaxed">As carteiras são criadas automaticamente com os primeiros agendamentos.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-2 gap-4">
           {wallets.map(wallet => (
-            <div key={wallet.id} className="flashlight-card p-8 rounded-[3rem] relative overflow-hidden group hover:border-brand-accent/30 transition-all">
-              <div className="absolute -top-8 -right-8 w-32 h-32 bg-brand-accent/5 rounded-full blur-2xl pointer-events-none" />
-              <div className="flex items-start justify-between mb-6">
-                <div className="w-14 h-14 rounded-[1.5rem] bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center text-brand-accent">
-                  <iconify-icon icon={getWalletIcon(wallet.type)} class="text-2xl" />
+            <div key={wallet.id} className="flashlight-card p-5 rounded-[2rem] relative overflow-hidden flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-[1rem] bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center text-brand-accent">
+                  <iconify-icon icon={getWalletIcon(wallet.type)} class="text-lg" />
                 </div>
-                <span className="text-[9px] font-mono font-black text-brand-muted uppercase tracking-widest px-3 py-1.5 rounded-full" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
+                <span className="text-[9px] font-mono font-black text-brand-muted uppercase tracking-widest px-2 py-1 rounded-full" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
                   {getWalletLabel(wallet.type)}
                 </span>
               </div>
-              <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest font-black mb-2">Saldo Disponível</p>
-              <div className="text-4xl font-display font-black text-brand-success tracking-tighter mb-4">
-                <span className="text-lg mr-1 opacity-50">R$</span>
-                {(wallet.balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              <div>
+                <p className="text-[9px] font-mono text-brand-muted uppercase tracking-widest font-black mb-1">Saldo Disponível</p>
+                <div className="text-2xl font-display font-black text-brand-success tracking-tighter">
+                  <span className="text-sm mr-0.5 opacity-50">R$</span>
+                  {(wallet.balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </div>
               </div>
               {wallet.type === 'subscription' && (() => {
                 const availableDate = wallet.lastCreditAt
@@ -148,27 +150,17 @@ export default function WalletsPage() {
                 const now = new Date();
                 const isAvailable = availableDate ? availableDate <= now : false;
                 return (
-                  <div className={`mb-4 px-4 py-2.5 rounded-2xl flex items-center gap-2.5 ${isAvailable ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-amber-500/10 border border-amber-500/20'}`}>
-                    <iconify-icon icon={isAvailable ? 'solar:check-circle-bold-duotone' : 'solar:clock-circle-bold-duotone'} class={`text-base flex-shrink-0 ${isAvailable ? 'text-emerald-400' : 'text-amber-400'}`} />
-                    <div>
-                      <p className={`text-[9px] font-mono font-black uppercase tracking-widest ${isAvailable ? 'text-emerald-400' : 'text-amber-400'}`}>
-                        {isAvailable ? 'Saque disponível' : 'Disponível em'}
-                      </p>
-                      {!isAvailable && availableDate && (
-                        <p className="text-[10px] font-mono text-amber-300/80 mt-0.5">
-                          {availableDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                        </p>
-                      )}
-                      {!availableDate && (
-                        <p className="text-[10px] font-mono text-amber-300/80 mt-0.5">Aguardando primeiro crédito</p>
-                      )}
-                    </div>
+                  <div className={`px-3 py-2 rounded-xl flex items-center gap-2 ${isAvailable ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-amber-500/10 border border-amber-500/20'}`}>
+                    <iconify-icon icon={isAvailable ? 'solar:check-circle-bold-duotone' : 'solar:clock-circle-bold-duotone'} class={`text-sm flex-shrink-0 ${isAvailable ? 'text-emerald-400' : 'text-amber-400'}`} />
+                    <p className={`text-[9px] font-mono font-black uppercase tracking-widest ${isAvailable ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {isAvailable ? 'Disponível' : availableDate ? availableDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'Aguardando'}
+                    </p>
                   </div>
                 );
               })()}
               <button
                 onClick={() => { setWithdrawModal({ wallet }); setWithdrawForm({ amount: '', pixKey: '' }); }}
-                className="w-full py-3 rounded-2xl text-[11px] font-mono font-black uppercase tracking-widest transition-all hover:border-brand-accent/40 hover:text-brand-accent active:scale-95"
+                className="w-full py-2.5 rounded-xl text-[10px] font-mono font-black uppercase tracking-widest transition-all hover:border-brand-accent/40 hover:text-brand-accent active:scale-95 mt-auto"
                 style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}
               >
                 Solicitar Saque
@@ -249,28 +241,21 @@ export default function WalletsPage() {
                 />
               </div>
 
-              {withdrawModal.wallet.type !== 'subscription' ? (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest ml-1">Chave PIX</label>
-                  <input
-                    type="text"
-                    value={withdrawForm.pixKey}
-                    onChange={e => setWithdrawForm(f => ({ ...f, pixKey: e.target.value }))}
-                    placeholder="CPF, e-mail, telefone ou chave aleatória"
-                    className="w-full rounded-2xl py-4 px-6 text-brand-main font-medium outline-none"
-                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
-                  />
-                </div>
-              ) : (
-                <div className="p-4 rounded-2xl flex items-center gap-3" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
-                  <iconify-icon icon="solar:card-bold-duotone" class="text-xl text-indigo-400" />
-                  <p className="text-[11px] font-mono text-indigo-300">O valor será transferido via PIX após aprovação.</p>
-                </div>
-              )}
+              <div className="space-y-2">
+                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest ml-1">Chave PIX</label>
+                <input
+                  type="text"
+                  value={withdrawForm.pixKey}
+                  onChange={e => setWithdrawForm(f => ({ ...f, pixKey: e.target.value }))}
+                  placeholder="CPF, e-mail, telefone ou chave aleatória"
+                  className="w-full rounded-2xl py-4 px-6 text-brand-main font-medium outline-none"
+                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
+                />
+              </div>
 
               <button
                 onClick={handleWithdraw}
-                disabled={withdrawing || !withdrawForm.amount || (withdrawModal.wallet.type !== 'subscription' && !withdrawForm.pixKey)}
+                disabled={withdrawing || !withdrawForm.amount || !withdrawForm.pixKey}
                 className="w-full py-5 rounded-2xl bg-brand-accent text-white font-display font-black text-[11px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(0,112,255,0.3)] hover:opacity-90 transition-all disabled:opacity-40"
               >
                 {withdrawing ? 'Processando...' : 'Confirmar Saque'}
