@@ -165,14 +165,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(updated);
     }
 
-    // Rejeitar
-    const updated = await prisma.withdrawal.update({
+    // Rejeitar — estorna saldo na carteira do barbeiro
+    const toReject = await prisma.withdrawal.findUnique({
       where: { id },
-      data: {
-        status: 'Rejeitado',
-        processedAt: new Date(),
-        ...(notes ? { notes } : {}),
-      },
+      select: { status: true, amount: true, walletId: true, userId: true },
+    });
+    if (!toReject) return NextResponse.json({ error: 'Saque não encontrado' }, { status: 404 });
+    if (toReject.status === 'Rejeitado') return NextResponse.json({ error: 'Saque já rejeitado' }, { status: 400 });
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // Só estorna se ainda não tinha sido aprovado (Pendente) ou se aprovado mas PIX não enviado
+      if (toReject.status === 'Pendente' || toReject.status === 'Aprovado') {
+        await tx.wallet.update({
+          where: { id: toReject.walletId },
+          data: { balance: { increment: toReject.amount } },
+        });
+        await tx.walletTransaction.create({
+          data: {
+            userId: toReject.userId,
+            walletId: toReject.walletId,
+            amount: toReject.amount,
+            type: 'credit',
+            method: 'pix',
+            description: `Estorno de saque rejeitado${notes ? ` — ${notes}` : ''}`,
+            category: 'estorno',
+          },
+        });
+      }
+
+      return tx.withdrawal.update({
+        where: { id },
+        data: {
+          status: 'Rejeitado',
+          processedAt: new Date(),
+          ...(notes ? { notes } : {}),
+        },
+      });
     });
 
     return NextResponse.json(updated);
