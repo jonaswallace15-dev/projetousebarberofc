@@ -57,7 +57,7 @@ async function sendPixViaAsaas(pixKey: string, amount: number, description: stri
         'Content-Type': 'application/json',
         'access_token': ASAAS_API_KEY,
       },
-      body: JSON.stringify({ operationType: 'PIX', value: amount, pixAddressKey, pixAddressKeyType, description }),
+      body: JSON.stringify({ value: amount, pixAddressKey, pixAddressKeyType, description }),
       signal: AbortSignal.timeout(8000),
     });
 
