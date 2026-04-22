@@ -104,8 +104,8 @@ export default function AdminPage() {
   return (
     <div className="flex min-h-screen bg-[#080808]">
 
-      {/* ── Sidebar ── */}
-      <aside className="w-64 shrink-0 border-r border-white/5 flex flex-col sticky top-0 h-screen overflow-y-auto" style={{ background: '#0a0a0a' }}>
+      {/* ── Sidebar (desktop only) ── */}
+      <aside className="hidden md:flex w-64 shrink-0 border-r border-white/5 flex-col sticky top-0 h-screen overflow-y-auto" style={{ background: '#0a0a0a' }}>
         <div className="p-7 border-b border-white/5">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center">
@@ -163,11 +163,38 @@ export default function AdminPage() {
         </div>
       </aside>
 
+      {/* ── Bottom nav (mobile only) ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center overflow-x-auto scrollbar-none border-t border-white/10 px-1 py-2 gap-1" style={{ background: '#0a0a0a' }}>
+        {NAV.map(item => (
+          <button
+            key={item.id}
+            onClick={() => { setTab(item.id); setSearch(''); }}
+            className={`relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all shrink-0 ${tab === item.id ? 'text-rose-400 bg-rose-500/10' : 'text-brand-muted'}`}
+          >
+            <iconify-icon icon={item.icon} class="text-xl" />
+            <span className="text-[8px] font-mono font-black uppercase tracking-wide whitespace-nowrap">{item.label.split(' ')[0]}</span>
+            {item.id === 'alerts' && alertCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 text-[8px] font-mono font-black bg-rose-500 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center">{alertCount > 9 ? '9+' : alertCount}</span>
+            )}
+            {item.id === 'withdrawals' && pendingW.length > 0 && (
+              <span className="absolute top-0.5 right-0.5 text-[8px] font-mono font-black bg-amber-500 text-black rounded-full w-3.5 h-3.5 flex items-center justify-center">{pendingW.length > 9 ? '9+' : pendingW.length}</span>
+            )}
+          </button>
+        ))}
+        <button
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-brand-muted shrink-0"
+        >
+          <iconify-icon icon="solar:logout-2-bold-duotone" class="text-xl" />
+          <span className="text-[8px] font-mono font-black uppercase tracking-wide">Sair</span>
+        </button>
+      </nav>
+
       {/* ── Main ── */}
-      <main className="flex-1 p-10 overflow-y-auto min-h-screen space-y-8">
+      <main className="flex-1 p-4 md:p-10 overflow-y-auto min-h-screen space-y-8 pb-24 md:pb-10">
 
         {/* Page header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-rose-500/30 bg-rose-500/5 mb-3">
               <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
@@ -182,7 +209,7 @@ export default function AdminPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar..."
-              className="rounded-2xl px-5 py-3 text-sm font-mono text-brand-main outline-none w-64"
+              className="rounded-2xl px-5 py-3 text-sm font-mono text-brand-main outline-none w-full sm:w-64"
               style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}
             />
           )}
