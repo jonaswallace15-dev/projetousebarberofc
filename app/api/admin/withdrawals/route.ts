@@ -110,32 +110,51 @@ export async function POST(request: NextRequest) {
       if (!withdrawal) return NextResponse.json({ error: 'Saque não encontrado' }, { status: 404 });
       if (withdrawal.status !== 'Pendente') return NextResponse.json({ error: 'Saque já processado' }, { status: 400 });
 
-      // Usa o saldo disponível no Asaas (após taxas), limitado ao valor solicitado
-      const availableBalance = await getAsaasBalance();
-      const actualAmount = Math.min(withdrawal.amount, Math.floor(availableBalance * 100) / 100);
-
-      if (actualAmount < 0.01) {
-        return NextResponse.json({ error: `Saldo insuficiente no Asaas: R$ ${availableBalance.toFixed(2)} disponível.` }, { status: 400 });
-      }
-
-      // Envia PIX via Asaas com o valor real disponível
-      const transfer = await sendPixViaAsaas(
-        withdrawal.pixKey,
-        actualAmount,
-        `Saque UseBarber — ID ${withdrawal.id}`,
-      );
-
-      if (!transfer.success) {
-        return NextResponse.json({ error: `Falha ao enviar PIX: ${transfer.error}` }, { status: 502 });
-      }
-
+      // Aprova imediatamente no banco para não bloquear a resposta
       const updated = await prisma.withdrawal.update({
         where: { id },
         data: {
           status: 'Aprovado',
           processedAt: new Date(),
-          notes: `Asaas transfer ID: ${transfer.transferId} | Solicitado: R$${withdrawal.amount.toFixed(2)} | Enviado: R$${actualAmount.toFixed(2)} (após taxas Asaas)`,
+          notes: 'Aprovado — transferência PIX em processamento...',
         },
+      });
+
+      // Tenta enviar PIX via Asaas em background (sem bloquear a resposta)
+      const withdrawalId = withdrawal.id;
+      const pixKey = withdrawal.pixKey;
+      const amount = withdrawal.amount;
+
+      Promise.resolve().then(async () => {
+        try {
+          const availableBalance = await getAsaasBalance();
+          const actualAmount = Math.min(amount, Math.floor(availableBalance * 100) / 100);
+
+          if (actualAmount < 0.01) {
+            await prisma.withdrawal.update({
+              where: { id: withdrawalId },
+              data: { notes: `Saldo insuficiente no Asaas: R$ ${availableBalance.toFixed(2)} disponível — envie o PIX manualmente.` },
+            });
+            return;
+          }
+
+          const transfer = await sendPixViaAsaas(pixKey, actualAmount, `Saque UseBarber — ID ${withdrawalId}`);
+
+          await prisma.withdrawal.update({
+            where: { id: withdrawalId },
+            data: {
+              notes: transfer.success
+                ? `PIX enviado via Asaas — ID: ${transfer.transferId} | R$${actualAmount.toFixed(2)}`
+                : `Erro ao enviar PIX: ${transfer.error} — envie manualmente a chave: ${pixKey}`,
+            },
+          });
+        } catch (e: any) {
+          console.error('[pix-background]', e.message);
+          await prisma.withdrawal.update({
+            where: { id: withdrawalId },
+            data: { notes: `Erro no processamento PIX: ${e.message} — envie manualmente a chave: ${pixKey}` },
+          }).catch(() => {});
+        }
       });
 
       return NextResponse.json(updated);
