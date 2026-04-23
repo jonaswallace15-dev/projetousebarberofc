@@ -1,72 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createPixPayment, isLorexpayConfigured, lorexpayDebugInfo } from '@/lib/lorexpay';
 
-const ASAAS_URL = process.env.ASAAS_URL || 'https://api-sandbox.asaas.com/v3';
-const ASAAS_API_KEY = process.env.ASAAS_API_KEY
-  ? (process.env.ASAAS_API_KEY.startsWith('$') ? process.env.ASAAS_API_KEY : `$${process.env.ASAAS_API_KEY}`)
-  : undefined;
-
-function asaasHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'access_token': ASAAS_API_KEY || '',
-  };
-}
-
-// Retorna due date de amanhã no formato YYYY-MM-DD
-function tomorrow() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
-}
-
-async function asaasJson(res: Response) {
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error(`Gateway retornou resposta inválida (${res.status}): ${text.slice(0, 200)}`);
-  }
-}
-
-// Cria ou reutiliza cliente no Asaas pelo CPF
-async function findOrCreateCustomer(name: string, cpfCnpj: string, email: string, phone: string): Promise<string> {
-  const digits = cpfCnpj.replace(/\D/g, '');
-
-  // Tenta buscar cliente existente pelo CPF
-  const search = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${digits}`, {
-    headers: asaasHeaders(),
-  });
-  const searchData = await asaasJson(search);
-  if (searchData.data?.length > 0) return searchData.data[0].id;
-
-  // Cria novo cliente
-  const create = await fetch(`${ASAAS_URL}/customers`, {
-    method: 'POST',
-    headers: asaasHeaders(),
-    body: JSON.stringify({
-      name,
-      cpfCnpj: digits,
-      email: email || undefined,
-      phone: phone || undefined,
-    }),
-  });
-  const created = await asaasJson(create);
-  if (!create.ok || created.errors?.length) {
-    throw new Error(created.errors?.[0]?.description || 'Erro ao criar cliente no gateway');
-  }
-  return created.id;
+function appBaseUrl() {
+  return (process.env.LOREXPAY_WEBHOOK_BASE_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
 }
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { action, ...data } = body;
 
-  if (!ASAAS_API_KEY) {
-    return NextResponse.json({ error: 'Gateway de pagamento não configurado' }, { status: 500 });
-  }
-
   // ─── Criar QR Code PIX ───────────────────────────────────────────────────
   if (action === 'create') {
+    if (!isLorexpayConfigured()) {
+      console.error('[PIX] LorexPay não configurado:', lorexpayDebugInfo());
+      return NextResponse.json({ error: 'Gateway de pagamento não configurado' }, { status: 500 });
+    }
+
     try {
       const { prisma } = await import('@/lib/prisma');
 
@@ -82,54 +31,41 @@ export async function POST(request: NextRequest) {
       if (!svc.price || svc.price <= 0) return NextResponse.json({ error: 'Serviço sem preço definido' }, { status: 400 });
 
       let productPrice = 0;
-      let productName = '';
       if (data.productId) {
         const prod = await prisma.product.findFirst({ where: { id: data.productId, userId: data.userId } });
-        if (prod) { productPrice = prod.price; productName = prod.name; }
+        if (prod) productPrice = prod.price;
       }
 
       const totalAmount = svc.price + productPrice;
-      const description = productName ? `${svc.name} + ${productName}` : svc.name;
+      const cpfDigits = data.taxId.replace(/\D/g, '');
+      const base = appBaseUrl();
 
-      // Cria/reutiliza cliente no Asaas
-      const customerId = await findOrCreateCustomer(
-        data.name,
-        data.taxId,
-        data.email || `${data.phone}@semmail.com`,
-        data.phone || '',
-      );
+      console.log('[PIX] Criando cobrança | serviço:', svc.name, '| valor:', totalAmount, '| webhookBase:', base);
 
-      // Cria cobrança PIX
-      const paymentRes = await fetch(`${ASAAS_URL}/payments`, {
-        method: 'POST',
-        headers: asaasHeaders(),
-        body: JSON.stringify({
-          customer: customerId,
-          billingType: 'PIX',
-          value: totalAmount,
-          dueDate: tomorrow(),
-          description,
-          ...(data.appointmentId ? { externalReference: data.appointmentId } : {}),
-        }),
+      const webhookUrl = data.appointmentId
+        ? `${base}/api/payments/lorexpay/webhook?ref=APPT|${data.appointmentId}`
+        : undefined;
+
+      const pix = await createPixPayment({
+        valueCents: Math.round(totalAmount * 100),
+        customer: {
+          name: data.name,
+          email: data.email || `${(data.phone || '').replace(/\D/g, '')}@semmail.com`,
+          phone: (data.phone || '').replace(/\D/g, '') || undefined,
+          cpf: cpfDigits || undefined,
+        },
+        webhookUrl,
+        metadata: data.appointmentId ? { referenceId: data.appointmentId } : undefined,
       });
-      const payment = await asaasJson(paymentRes);
 
-      if (!paymentRes.ok || payment.errors?.length) {
-        const msg = payment.errors?.[0]?.description || 'Erro ao gerar cobrança';
-        return NextResponse.json({ error: msg }, { status: 400 });
-      }
-
-      // Busca QR Code PIX
-      const qrRes = await fetch(`${ASAAS_URL}/payments/${payment.id}/pixQrCode`, {
-        headers: asaasHeaders(),
-      });
-      const qrData = await asaasJson(qrRes);
+      console.log('[PIX] Cobrança criada | orderId:', pix.orderId, '| status:', pix.status);
 
       return NextResponse.json({
-        id: payment.id,
-        status: payment.status,
-        brCode: qrData.payload || null,
-        pixQrCode: qrData.encodedImage || null,
+        id: data.appointmentId || pix.orderId,
+        lorexpayOrderId: pix.orderId,
+        status: pix.status,
+        brCode: pix.pix?.brCode || null,
+        pixQrCode: pix.pix?.qrCodeImage || null,
       });
     } catch (err: any) {
       console.error('[PIX CREATE ERROR]', err.message);
@@ -137,45 +73,23 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // ─── Checar status ────────────────────────────────────────────────────────
+  // ─── Checar status via DB (billingId = appointmentId) ────────────────────
   if (action === 'status') {
     try {
-      const res = await fetch(`${ASAAS_URL}/payments/${data.billingId}`, {
-        headers: asaasHeaders(),
+      const { prisma } = await import('@/lib/prisma');
+      const appt = await prisma.appointment.findUnique({
+        where: { id: data.billingId },
+        select: { status: true },
       });
-      const result = await asaasJson(res);
-      // Asaas: RECEIVED ou CONFIRMED = pago
-      const raw = result.status || null;
-      const normalized = ['RECEIVED', 'CONFIRMED'].includes(raw) ? 'PAID' : raw;
-      return NextResponse.json({ status: normalized });
+      const isPaid = appt?.status === 'Confirmado';
+      return NextResponse.json({ status: isPaid ? 'PAID' : 'PENDING' });
     } catch (err: any) {
+      console.error('[PIX STATUS ERROR]', err.message);
       return NextResponse.json({ error: err.message }, { status: 500 });
     }
   }
 
-  // ─── Simular pagamento (sandbox only) ────────────────────────────────────
-  if (action === 'simulate') {
-    try {
-      const res = await fetch(`${ASAAS_URL}/payments/${data.billingId}/simulate`, {
-        method: 'POST',
-        headers: asaasHeaders(),
-      });
-
-      let result: any = {};
-      try { result = await res.json(); } catch { /* resposta não-JSON */ }
-
-      if (!res.ok) {
-        const msg = result?.errors?.[0]?.description || 'Simulação indisponível neste ambiente';
-        return NextResponse.json({ error: msg }, { status: 400 });
-      }
-
-      return NextResponse.json({ status: 'PAID' });
-    } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
-    }
-  }
-
-  // ─── Simular assinatura de plano (DB only) ────────────────────────────────
+  // ─── Simular assinatura de plano (DB only — apenas dev) ──────────────────
   if (action === 'billing-simulate') {
     if (process.env.NODE_ENV === 'production')
       return NextResponse.json({ error: 'Not available in production' }, { status: 403 });

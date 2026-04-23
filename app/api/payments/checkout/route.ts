@@ -1,131 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { createPixPayment } from '@/lib/lorexpay';
 
-const ASAAS_URL = process.env.ASAAS_URL || 'https://api.asaas.com/v3';
-const ASAAS_KEY = process.env.ASAAS_API_KEY
-  ? (process.env.ASAAS_API_KEY.startsWith('$') ? process.env.ASAAS_API_KEY : `$${process.env.ASAAS_API_KEY}`)
-  : '';
-
-function asaasHeaders() {
-  return { 'Content-Type': 'application/json', 'access_token': ASAAS_KEY };
+function appBaseUrl() {
+  return (process.env.LOREXPAY_WEBHOOK_BASE_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
 }
 
-async function asaasJson(res: Response) {
-  const text = await res.text();
-  try { return JSON.parse(text); } catch { throw new Error(`Asaas error (${res.status}): ${text.slice(0, 200)}`); }
-}
-
-function nextDueDate(billingDay: number = 10) {
-  const today = new Date();
-  const day = Math.min(28, Math.max(1, billingDay));
-  const candidate = new Date(today.getFullYear(), today.getMonth(), day);
-  // Se o dia já passou esse mês, usa o próximo mês
-  if (candidate <= today) candidate.setMonth(candidate.getMonth() + 1);
-  return candidate.toISOString().split('T')[0];
-}
-
-async function findOrCreateAsaasCustomer(name: string, cpfCnpj: string, email: string, phone: string): Promise<string> {
-  const digits = cpfCnpj.replace(/\D/g, '');
-  const search = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${digits}`, { headers: asaasHeaders() });
-  const found = await asaasJson(search);
-  if (found.data?.length > 0) {
-    const existing = found.data[0];
-    // Atualiza os dados do cliente com as informações mais recentes
-    await fetch(`${ASAAS_URL}/customers/${existing.id}`, {
-      method: 'PUT',
-      headers: asaasHeaders(),
-      body: JSON.stringify({ name, email: email || undefined, phone: phone || undefined }),
-    });
-    return existing.id;
-  }
-  const create = await fetch(`${ASAAS_URL}/customers`, {
-    method: 'POST',
-    headers: asaasHeaders(),
-    body: JSON.stringify({ name, cpfCnpj: digits, email: email || undefined, phone: phone || undefined }),
-  });
-  const created = await asaasJson(create);
-  if (!create.ok || created.errors?.length) throw new Error(created.errors?.[0]?.description || 'Erro ao criar cliente');
-  return created.id;
-}
+// ── Código Asaas mantido para uso futuro ──────────────────────────────────────
+// const ASAAS_URL = process.env.ASAAS_URL || 'https://api.asaas.com/v3';
+// const ASAAS_KEY = process.env.ASAAS_API_KEY
+//   ? (process.env.ASAAS_API_KEY.startsWith('$') ? process.env.ASAAS_API_KEY : `$${process.env.ASAAS_API_KEY}`)
+//   : '';
+//
+// function asaasHeaders() {
+//   return { 'Content-Type': 'application/json', 'access_token': ASAAS_KEY };
+// }
+//
+// async function asaasJson(res: Response) {
+//   const text = await res.text();
+//   try { return JSON.parse(text); } catch { throw new Error(`Asaas error (${res.status}): ${text.slice(0, 200)}`); }
+// }
+//
+// function nextDueDate(billingDay: number = 10) {
+//   const today = new Date();
+//   const day = Math.min(28, Math.max(1, billingDay));
+//   const candidate = new Date(today.getFullYear(), today.getMonth(), day);
+//   if (candidate <= today) candidate.setMonth(candidate.getMonth() + 1);
+//   return candidate.toISOString().split('T')[0];
+// }
+//
+// async function findOrCreateAsaasCustomer(name, cpfCnpj, email, phone) { ... }
+// async function createAsaasSubscription(planId, customerId, billingDay) { ... }
+// ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action } = body;
 
-    // ── Asaas Subscription Checkout ────────────────────────────────────
-    if (action === 'create-asaas-checkout') {
-      const { planId, clientName, clientEmail, clientPhone, clientCpf, billingDay } = body;
+    // ── Checkout PIX via LorexPay ─────────────────────────────────────────
+    if (action === 'create-lorexpay-checkout') {
+      const { planId, clientName, clientEmail, clientPhone, clientCpf } = body;
       const cpfDigits = (clientCpf || '').replace(/\D/g, '');
 
-      if (!clientCpf || clientCpf.replace(/\D/g, '').length !== 11) {
+      if (!clientCpf || cpfDigits.length !== 11) {
         return NextResponse.json({ error: 'CPF inválido' }, { status: 400 });
       }
 
       const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
       if (!plan) return NextResponse.json({ error: 'Plano não encontrado' }, { status: 404 });
 
-      const customerId = await findOrCreateAsaasCustomer(
-        clientName,
-        clientCpf,
-        clientEmail || `${clientPhone}@semmail.com`,
-        clientPhone || '',
-      );
+      const phoneDigits = (clientPhone || '').replace(/\D/g, '');
+      const email = clientEmail || `${phoneDigits || cpfDigits}@semmail.com`;
 
-      // Verifica se já existe assinatura ativa para este cliente neste plano
-      const existingSubsRes = await fetch(`${ASAAS_URL}/subscriptions?customer=${customerId}&status=ACTIVE`, { headers: asaasHeaders() });
-      const existingSubsData = await asaasJson(existingSubsRes);
-      const existingSub = existingSubsData.data?.find((s: any) => s.externalReference?.startsWith(`SUB|${plan.id}|`));
-      if (existingSub) {
-        const requestedDay = billingDay ?? plan.billingDay ?? 10;
-        // Extrai o dia de vencimento da assinatura existente
-        const existingDay = existingSub.nextDueDate
-          ? new Date(existingSub.nextDueDate + 'T12:00:00').getDate()
-          : null;
-        if (existingDay === requestedDay) {
-          // Mesmo dia de vencimento — retorna link existente (evita duplicata)
-          const existingPaymentsRes = await fetch(`${ASAAS_URL}/payments?subscription=${existingSub.id}`, { headers: asaasHeaders() });
-          const existingPaymentsData = await asaasJson(existingPaymentsRes);
-          const existingPayment = existingPaymentsData.data?.[0];
-          const existingUrl = existingPayment?.invoiceUrl || existingSub.paymentLink;
-          if (existingUrl) return NextResponse.json({ url: existingUrl });
-        } else {
-          // Dia diferente — cancela a antiga e cria nova com o dia correto
-          await fetch(`${ASAAS_URL}/subscriptions/${existingSub.id}`, { method: 'DELETE', headers: asaasHeaders() });
-        }
-      }
+      const webhookUrl = `${appBaseUrl()}/api/payments/lorexpay/webhook?ref=SUB|${plan.id}|${plan.userId}|${phoneDigits}|${cpfDigits}`;
 
-      const subRes = await fetch(`${ASAAS_URL}/subscriptions`, {
-        method: 'POST',
-        headers: asaasHeaders(),
-        body: JSON.stringify({
-          customer: customerId,
-          billingType: 'CREDIT_CARD',
-          value: plan.price,
-          nextDueDate: nextDueDate(billingDay ?? plan.billingDay ?? 10),
-          cycle: 'MONTHLY',
-          description: plan.name,
-          externalReference: `SUB|${plan.id}|${plan.userId}|${(clientPhone || '').replace(/\D/g, '')}|${cpfDigits}`,
-        }),
+      const pix = await createPixPayment({
+        valueCents: Math.round(plan.price * 100),
+        customer: {
+          name: clientName,
+          email,
+          phone: phoneDigits || undefined,
+          cpf: cpfDigits || undefined,
+        },
+        webhookUrl,
+        metadata: { referenceId: `SUB|${plan.id}|${plan.userId}` },
       });
-      const sub = await asaasJson(subRes);
 
-      if (!subRes.ok || sub.errors?.length) {
-        const msg = sub.errors?.[0]?.description || 'Erro ao criar assinatura';
-        return NextResponse.json({ error: msg }, { status: 400 });
-      }
-
-      // Cria/atualiza cliente imediatamente após gerar a assinatura no Asaas
-      // Não depende do webhook nem exige telefone — CPF é suficiente
+      // Cria/atualiza cliente local e ClientSubscription pending_payment
       let localClientId: string | null = null;
+      let clientSubscriptionId: string | null = null;
       try {
-        const phoneDigits = (clientPhone || '').replace(/\D/g, '');
         let client = phoneDigits
           ? await prisma.client.findFirst({ where: { userId: plan.userId, phone: phoneDigits } })
           : await prisma.client.findFirst({ where: { userId: plan.userId, cpfCnpj: { contains: cpfDigits } } });
 
         if (client) {
-          // Atualiza nome e CPF se faltavam
           const updateData: any = {};
           if (!client.cpfCnpj && cpfDigits) updateData.cpfCnpj = cpfDigits;
           if (clientName && client.name !== clientName) updateData.name = clientName;
@@ -151,52 +101,59 @@ export async function POST(request: NextRequest) {
           localClientId = created.id;
         }
 
-        // Cria ClientSubscription como pending_payment — webhook confirma após pagamento
         if (localClientId) {
-          const alreadyPending = await prisma.clientSubscription.findFirst({
+          let sub = await prisma.clientSubscription.findFirst({
             where: { userId: plan.userId, clientId: localClientId, planId: plan.id },
           });
-          if (!alreadyPending) {
-            await prisma.clientSubscription.create({
+          if (sub) {
+            sub = await prisma.clientSubscription.update({
+              where: { id: sub.id },
+              data: {
+                status: 'pending_payment',
+                data: { ...(sub.data as object), lorexpayOrderId: pix.orderId },
+              },
+            });
+          } else {
+            sub = await prisma.clientSubscription.create({
               data: {
                 userId: plan.userId,
                 clientId: localClientId,
                 planId: plan.id,
                 status: 'pending_payment',
                 data: {
-                  asaasSubscriptionId: sub.id,
+                  lorexpayOrderId: pix.orderId,
                   cpfCnpj: cpfDigits || null,
                   subscribedAt: new Date().toISOString(),
                 },
               },
             });
           }
+          clientSubscriptionId = sub.id;
         }
-      } catch (e) { console.error('[checkout-client-upsert]', e); }
+      } catch (e) { console.error('[lorexpay-checkout-upsert]', e); }
 
-      // Busca a primeira cobrança gerada automaticamente pela assinatura
-      const paymentsRes = await fetch(`${ASAAS_URL}/payments?subscription=${sub.id}`, {
-        headers: asaasHeaders(),
+      return NextResponse.json({
+        lorexpayOrderId: pix.orderId,
+        brCode: pix.pix?.brCode || null,
+        qrCodeImage: pix.pix?.qrCodeImage || null,
+        expiresAt: pix.pix?.expiresAt || null,
+        clientSubscriptionId,
       });
-      const paymentsData = await asaasJson(paymentsRes);
-      const firstPayment = paymentsData.data?.[0];
-      const paymentUrl = firstPayment?.invoiceUrl || sub.paymentLink;
-
-      if (!paymentUrl) {
-        return NextResponse.json({ error: 'Não foi possível gerar o link de pagamento. Tente novamente.' }, { status: 500 });
-      }
-
-      return NextResponse.json({ url: paymentUrl });
     }
 
-    // ── Cancelar Assinatura ────────────────────────────────────────────
+    // ── Cancelar Assinatura ────────────────────────────────────────────────
+    // Asaas cancel mantido pois ainda armazena asaasSubscriptionId nos dados existentes
     if (action === 'cancel-subscription') {
       const { asaasSubscriptionId, clientSubscriptionId } = body;
 
       if (asaasSubscriptionId) {
+        const ASAAS_URL = process.env.ASAAS_URL || 'https://api.asaas.com/v3';
+        const ASAAS_KEY = process.env.ASAAS_API_KEY
+          ? (process.env.ASAAS_API_KEY.startsWith('$') ? process.env.ASAAS_API_KEY : `$${process.env.ASAAS_API_KEY}`)
+          : '';
         await fetch(`${ASAAS_URL}/subscriptions/${asaasSubscriptionId}`, {
           method: 'DELETE',
-          headers: asaasHeaders(),
+          headers: { 'Content-Type': 'application/json', access_token: ASAAS_KEY },
         });
       }
 

@@ -790,7 +790,7 @@ export default function BookingPage({ params }: PageProps) {
               <div className="w-full flex flex-col items-center gap-6">
                 <div className="p-4 bg-white rounded-[2rem]">
                   <img
-                    src={paymentBilling.pixQrCode.startsWith('data:') ? paymentBilling.pixQrCode : `data:image/png;base64,${paymentBilling.pixQrCode}`}
+                    src={paymentBilling.pixQrCode.startsWith('http') ? paymentBilling.pixQrCode : paymentBilling.pixQrCode.startsWith('data:') ? paymentBilling.pixQrCode : `data:image/png;base64,${paymentBilling.pixQrCode}`}
                     alt="QR Code PIX"
                     className="w-56 h-56 object-contain"
                   />
