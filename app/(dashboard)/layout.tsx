@@ -36,11 +36,11 @@ function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
   return (
     <div className="min-h-screen flex overflow-x-hidden" style={{ backgroundColor: 'var(--brand-deep)', color: 'var(--text-main)' }}>
       {/* Sidebar Overlay for Mobile */}
-      {sidebarOpen && (
+      {sidebarOpen && userRole !== 'Barbeiro' && (
         <div className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} userRole={userRole} hideBottomNavItems collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} />
+      <Sidebar isOpen={userRole === 'Barbeiro' ? false : sidebarOpen} onClose={() => setSidebarOpen(false)} userRole={userRole} hideBottomNavItems collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(c => !c)} />
 
       <main className={`flex-1 min-h-screen transition-all duration-500 ${sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64'}`}>
         {/* Top Header */}
@@ -139,15 +139,25 @@ function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
           );
         })}
 
-        {/* More (opens sidebar) */}
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-all"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          <Menu size={22} strokeWidth={1.8} />
-          <span className="text-[10px] font-mono font-black uppercase tracking-widest">Mais</span>
-        </button>
+        {/* More (opens sidebar) / Deslogar */}
+        {userRole === 'Barbeiro' ? (
+          <button
+            onClick={handleSignOut}
+            className="flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-all text-rose-500 hover:text-rose-400"
+          >
+            <LogOut size={22} strokeWidth={1.8} />
+            <span className="text-[10px] font-mono font-black uppercase tracking-widest">Deslogar</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-all"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <Menu size={22} strokeWidth={1.8} />
+            <span className="text-[10px] font-mono font-black uppercase tracking-widest">Mais</span>
+          </button>
+        )}
       </nav>
     </div>
   );
