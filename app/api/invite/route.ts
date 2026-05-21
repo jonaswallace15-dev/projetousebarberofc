@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     data: { token, barberId, userId: session.user.id, expiresAt },
   });
 
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const baseUrl = (process.env.NEXTAUTH_URL || 'http://localhost:3000').replace(/\/$/, '');
   return NextResponse.json({ url: `${baseUrl}/convite/${token}` });
 }
 

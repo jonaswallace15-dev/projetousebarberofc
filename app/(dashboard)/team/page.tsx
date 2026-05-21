@@ -682,16 +682,9 @@ export default function TeamPage() {
               <div className="flex gap-3">
                 <button
                   onClick={() => { navigator.clipboard.writeText(inviteLink); toast('Copiado!', 'success'); }}
-                  className="flex-1 py-3 rounded-2xl text-[11px] font-mono font-black uppercase tracking-widest bg-brand-accent text-white hover:opacity-90 transition-all"
+                  className="w-full py-4 rounded-2xl text-[11.5px] font-mono font-black uppercase tracking-widest bg-brand-accent text-white hover:opacity-90 transition-all"
                 >
                   Copiar Link
-                </button>
-                <button
-                  onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent('Você foi convidado para a equipe! Acesse: ' + inviteLink)}`, '_blank'); }}
-                  className="flex-1 py-3 rounded-2xl text-[11px] font-mono font-black uppercase tracking-widest text-brand-success border border-brand-success/20 hover:bg-brand-success/10 transition-all"
-                  style={{ background: 'var(--input-bg)' }}
-                >
-                  WhatsApp
                 </button>
               </div>
             </div>
