@@ -109,35 +109,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userRole, hid
         </nav>
 
         {/* BOTTOM - PREMIUM PLAN */}
-        <div className={`mt-auto transition-all duration-300 ${collapsed ? 'lg:p-2' : 'p-6'}`}>
-          {collapsed ? (
-            <div className="hidden lg:flex justify-center py-3">
-              <div className="w-9 h-9 rounded-xl bg-brand-accent/10 border border-brand-accent/30 flex items-center justify-center text-brand-accent text-xs font-black" title="Elite Member">
-                ★
-              </div>
-            </div>
-          ) : (
-            <div className="flashlight-card p-6 rounded-3xl relative group overflow-hidden" style={{ border: '1px solid var(--card-border)', background: 'var(--nav-item-hover)' }}>
-              <div className="absolute -top-10 -right-10 w-24 h-24 bg-brand-accent/10 rounded-full blur-2xl group-hover:bg-brand-accent/20 transition-all duration-500" />
-              <p className="text-[9px] font-mono text-brand-accent uppercase tracking-widest font-bold mb-2">Master Tier</p>
-              <p className="text-sm font-display font-black text-brand-main uppercase tracking-tight">Assinatura Ativa</p>
-              <div className="mt-4 space-y-2">
-                <div className="flex justify-between text-[10px] font-mono text-brand-muted uppercase">
-                  <span>Sincronização</span>
-                  <span>100%</span>
-                </div>
-                <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--card-border)' }}>
-                  <div className="h-full bg-brand-accent w-full shadow-[0_0_10px_#0070FF]" />
+        {userRole !== 'Barbeiro' && (
+          <div className={`mt-auto transition-all duration-300 ${collapsed ? 'lg:p-2' : 'p-6'}`}>
+            {collapsed ? (
+              <div className="hidden lg:flex justify-center py-3">
+                <div className="w-9 h-9 rounded-xl bg-brand-accent/10 border border-brand-accent/30 flex items-center justify-center text-brand-accent text-xs font-black" title="Elite Member">
+                  ★
                 </div>
               </div>
-              <button className="mt-5 w-full btn-beam py-2 px-1 rounded-xl group/btn">
-                <div className="btn-beam-content py-2 px-4 rounded-[calc(0.75rem-1px)] text-[10px] font-display font-black uppercase text-brand-accent group-hover/btn:text-white transition-colors flex items-center justify-center gap-2">
-                  ★ Elite Member
+            ) : (
+              <div className="flashlight-card p-6 rounded-3xl relative group overflow-hidden" style={{ border: '1px solid var(--card-border)', background: 'var(--nav-item-hover)' }}>
+                <div className="absolute -top-10 -right-10 w-24 h-24 bg-brand-accent/10 rounded-full blur-2xl group-hover:bg-brand-accent/20 transition-all duration-500" />
+                <p className="text-[9px] font-mono text-brand-accent uppercase tracking-widest font-bold mb-2">Master Tier</p>
+                <p className="text-sm font-display font-black text-brand-main uppercase tracking-tight">Assinatura Ativa</p>
+                <div className="mt-4 space-y-2">
+                  <div className="flex justify-between text-[10px] font-mono text-brand-muted uppercase">
+                    <span>Sincronização</span>
+                    <span>100%</span>
+                  </div>
+                  <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--card-border)' }}>
+                    <div className="h-full bg-brand-accent w-full shadow-[0_0_10px_#0070FF]" />
+                  </div>
                 </div>
-              </button>
-            </div>
-          )}
-        </div>
+                <button className="mt-5 w-full btn-beam py-2 px-1 rounded-xl group/btn">
+                  <div className="btn-beam-content py-2 px-4 rounded-[calc(0.75rem-1px)] text-[10px] font-display font-black uppercase text-brand-accent group-hover/btn:text-white transition-colors flex items-center justify-center gap-2">
+                    ★ Elite Member
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </aside>
   );

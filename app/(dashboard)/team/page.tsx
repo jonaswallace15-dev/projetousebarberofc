@@ -543,11 +543,13 @@ export default function TeamPage() {
                       className="w-28 h-28 rounded-[2.5rem] overflow-hidden group-hover:border-brand-accent/50 transition-all shadow-2xl"
                       style={{ border: '2px solid var(--card-border)', background: 'var(--input-bg)' }}
                     >
-                      <img
-                        src={barber.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${barber.name}`}
-                        className="w-full h-full object-cover"
-                        alt={barber.name}
-                      />
+                      {barber.avatar ? (
+                        <img src={barber.avatar} className="w-full h-full object-cover" alt={barber.name} />
+                      ) : (
+                        <span className="text-3xl font-display font-black text-brand-accent uppercase">
+                          {barber.name.charAt(0)}
+                        </span>
+                      )}
                     </div>
                     <div className={`absolute -bottom-2 -right-2 w-10 h-10 border-4 border-brand-deep rounded-2xl flex items-center justify-center text-white shadow-xl ${isOwnerCard ? 'bg-amber-500' : 'bg-brand-accent'}`}>
                       {isOwnerCard ? <Crown size={14} fill="white" /> : <Star size={14} fill="white" />}
