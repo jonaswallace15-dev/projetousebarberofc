@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Instagram, ExternalLink, Check, ChevronRight, Loader2, Download, Printer } from 'lucide-react';
-import { QRCodeCanvas } from 'qrcode.react';
+import { Instagram, ExternalLink, Check, ChevronRight, Loader2 } from 'lucide-react';
 import { supabaseService } from '@/services/supabaseService';
 import { useAuth } from '@/components/AuthProvider';
 import { useUI } from '@/components/UIProvider';
@@ -411,92 +410,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
-              {/* QR Code */}
-              {config.slug && (
-                <div className="flashlight-card p-10 rounded-[3.5rem]">
-                  <h3 className="text-2xl font-display font-black text-brand-main uppercase tracking-tight mb-2 flex items-center gap-3">
-                    <iconify-icon icon="solar:qr-code-bold-duotone" class="text-3xl text-brand-accent" />
-                    QR Code de Agendamento
-                  </h3>
-                  <p className="text-brand-muted text-sm font-medium mb-8">Imprima e cole na sua barbearia. O cliente escaneia e já vai direto para o agendamento.</p>
-
-                  <div className="flex flex-col md:flex-row items-center gap-10">
-                    <div
-                      id="qrcode-print-area"
-                      className="flex flex-col items-center gap-4 p-8 rounded-[2.5rem]"
-                      style={{ background: '#ffffff', border: '1px solid var(--card-border)' }}
-                    >
-                      <QRCodeCanvas
-                        value={`https://usebarber.site/book/${config.slug}`}
-                        size={200}
-                        bgColor="#ffffff"
-                        fgColor="#000000"
-                        level="H"
-                        includeMargin={false}
-                      />
-                      <p className="text-[11px] font-mono text-black font-black uppercase tracking-widest text-center">
-                        usebarber.site/book/{config.slug}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col gap-4 flex-1">
-                      <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest font-black">Link público</p>
-                      <div className="p-4 rounded-2xl break-all text-[12px] font-mono text-brand-accent" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
-                        https://usebarber.site/book/{config.slug}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const canvas = document.querySelector('#qrcode-print-area canvas') as HTMLCanvasElement;
-                          if (!canvas) return;
-                          const link = document.createElement('a');
-                          link.download = `qrcode-${config.slug}.png`;
-                          link.href = canvas.toDataURL('image/png');
-                          link.click();
-                        }}
-                        className="flex items-center justify-center gap-2 py-4 rounded-2xl border text-brand-accent font-display font-black text-[10px] uppercase tracking-[0.2em] hover:bg-brand-accent/10 transition-all"
-                        style={{ border: '1px solid var(--card-border)', background: 'var(--input-bg)' }}
-                      >
-                        <Download size={15} /> Baixar PNG
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const canvas = document.querySelector('#qrcode-print-area canvas') as HTMLCanvasElement;
-                          if (!canvas) return;
-                          const imgData = canvas.toDataURL('image/png');
-                          const win = window.open('', '_blank');
-                          if (!win) return;
-                          win.document.write(`
-                            <html><head><title>QR Code - ${config.name}</title>
-                            <style>
-                              body { margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: monospace; background: #fff; }
-                              h2 { font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
-                              img { width: 220px; height: 220px; }
-                              p { font-size: 11px; color: #555; margin-top: 12px; }
-                              small { font-size: 10px; color: #888; margin-top: 4px; }
-                            </style></head>
-                            <body>
-                              <h2>${config.name}</h2>
-                              <img src="${imgData}" />
-                              <p>Escaneie e agende seu horário</p>
-                              <small>usebarber.site/book/${config.slug}</small>
-                            </body></html>
-                          `);
-                          win.document.close();
-                          win.focus();
-                          win.print();
-                        }}
-                        className="flex items-center justify-center gap-2 py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(0,112,255,0.3)] hover:opacity-90 transition-all"
-                      >
-                        <Printer size={15} /> Imprimir QR Code
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 

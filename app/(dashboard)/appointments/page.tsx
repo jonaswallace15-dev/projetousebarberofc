@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { CheckCircle2, Copy, Smartphone, Trash2, Edit3, XCircle, ChevronLeft, ChevronRight, TrendingUp, X } from 'lucide-react';
+import { CheckCircle2, Copy, Smartphone, Trash2, Edit3, XCircle, ChevronLeft, ChevronRight, TrendingUp, X, QrCode, Download, Printer } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { ShimmerButton } from '@/components/ui/shimmer-button';
 import { useAuth } from '@/components/AuthProvider';
 import { useUI } from '@/components/UIProvider';
@@ -27,6 +28,7 @@ export default function AppointmentsPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [view, setView] = useState<'Diário' | 'Semanal' | 'Mensal'>('Diário');
   const [copied, setCopied] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
@@ -162,7 +164,7 @@ export default function AppointmentsPage() {
             </div>
             <div className="flex flex-col gap-4 w-full lg:w-fit min-w-[300px]">
               <input readOnly value={bookingUrl} className="w-full rounded-2xl py-5 px-6 text-sm font-mono text-brand-main outline-none" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <button onClick={handleCopyLink} className="flex items-center justify-center gap-3 font-display font-black text-[11px] uppercase tracking-widest py-4 rounded-2xl transition-all active:scale-95 text-brand-main" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}>
                   {copied ? <CheckCircle2 size={18} className="text-brand-success" /> : <Copy size={18} className="text-brand-accent" />}
                   {copied ? 'Copiado' : 'Copiar'}
@@ -170,6 +172,9 @@ export default function AppointmentsPage() {
                 <a href={`/book/${bookingSlug}`} target="_blank" className="flex items-center justify-center gap-3 bg-brand-accent hover:opacity-90 text-white font-display font-black text-[11px] uppercase tracking-widest py-4 rounded-2xl transition-all active:scale-95 shadow-[0_0_20px_rgba(0,102,255,0.3)]">
                   Enviar Link
                 </a>
+                <button onClick={() => setQrOpen(true)} className="flex items-center justify-center gap-2 font-display font-black text-[11px] uppercase tracking-widest py-4 rounded-2xl transition-all active:scale-95 text-brand-accent hover:bg-brand-accent/10" style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}>
+                  <QrCode size={18} /> QR Code
+                </button>
               </div>
             </div>
           </div>
@@ -307,6 +312,70 @@ export default function AppointmentsPage() {
         </div>
         </div>
       </div>
+
+      {/* QR Code Modal */}
+      {qrOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl" onClick={() => setQrOpen(false)}>
+          <div className="w-full max-w-sm rounded-[3rem] overflow-hidden shadow-2xl" style={{ background: 'var(--header-bg)', border: '1px solid var(--card-border)' }} onClick={e => e.stopPropagation()}>
+            <div className="px-8 pt-8 pb-6 flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-mono text-brand-accent uppercase tracking-widest font-black mb-1">Agendamento</p>
+                <h2 className="text-xl font-display font-black text-brand-main uppercase tracking-tight">QR Code<span className="text-brand-accent">.</span></h2>
+              </div>
+              <button onClick={() => setQrOpen(false)} className="w-10 h-10 rounded-full flex items-center justify-center text-brand-muted hover:text-brand-main transition-all hover:rotate-90" style={{ background: 'var(--input-bg)' }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-8 pb-8 flex flex-col items-center gap-6">
+              <div id="qrcode-print-area" className="p-6 rounded-[2rem] bg-white">
+                <QRCodeCanvas
+                  value={`https://usebarber.site/book/${bookingSlug}`}
+                  size={200}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                  level="H"
+                  includeMargin={false}
+                />
+              </div>
+              <p className="text-[10px] font-mono text-brand-muted text-center">usebarber.site/book/{bookingSlug}</p>
+
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <button
+                  onClick={() => {
+                    const canvas = document.querySelector('#qrcode-print-area canvas') as HTMLCanvasElement;
+                    if (!canvas) return;
+                    const link = document.createElement('a');
+                    link.download = `qrcode-${bookingSlug}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                  }}
+                  className="flex items-center justify-center gap-2 py-3 rounded-2xl font-mono font-black text-[10px] uppercase tracking-widest text-brand-accent hover:bg-brand-accent/10 transition-all"
+                  style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}
+                >
+                  <Download size={14} /> Baixar
+                </button>
+                <button
+                  onClick={() => {
+                    const canvas = document.querySelector('#qrcode-print-area canvas') as HTMLCanvasElement;
+                    if (!canvas) return;
+                    const img = canvas.toDataURL('image/png');
+                    const win = window.open('', '_blank');
+                    if (!win) return;
+                    win.document.write(`<html><head><title>QR Code</title><style>body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:monospace;background:#fff;}img{width:260px;height:260px;}p{font-size:11px;color:#555;margin-top:16px;}</style></head><body><img src="${img}"/><p>usebarber.site/book/${bookingSlug}</p></body></html>`);
+                    win.document.close();
+                    win.focus();
+                    win.print();
+                  }}
+                  className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-brand-accent text-white font-mono font-black text-[10px] uppercase tracking-widest hover:opacity-90 transition-all"
+                >
+                  <Printer size={14} /> Imprimir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL */}
       {modalOpen && (
