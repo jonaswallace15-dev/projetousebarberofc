@@ -464,8 +464,9 @@ export default function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          const printArea = document.getElementById('qrcode-print-area');
-                          if (!printArea) return;
+                          const canvas = document.querySelector('#qrcode-print-area canvas') as HTMLCanvasElement;
+                          if (!canvas) return;
+                          const imgData = canvas.toDataURL('image/png');
                           const win = window.open('', '_blank');
                           if (!win) return;
                           win.document.write(`
@@ -473,12 +474,15 @@ export default function SettingsPage() {
                             <style>
                               body { margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: monospace; background: #fff; }
                               h2 { font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+                              img { width: 220px; height: 220px; }
                               p { font-size: 11px; color: #555; margin-top: 12px; }
+                              small { font-size: 10px; color: #888; margin-top: 4px; }
                             </style></head>
                             <body>
                               <h2>${config.name}</h2>
-                              ${printArea.innerHTML}
+                              <img src="${imgData}" />
                               <p>Escaneie e agende seu horário</p>
+                              <small>usebarber.site/book/${config.slug}</small>
                             </body></html>
                           `);
                           win.document.close();
