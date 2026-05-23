@@ -32,6 +32,7 @@ export default function BookingPage({ params }: PageProps) {
   const [isSubscriber, setIsSubscriber] = useState(false);
   const [subscriberPlan, setSubscriberPlan] = useState<string | null>(null);
   const [checkingSubscription, setCheckingSubscription] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cash'>('pix');
   const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
 
   const [bookingData, setBookingData] = useState({
@@ -197,9 +198,9 @@ export default function BookingPage({ params }: PageProps) {
       const barber = barbers.find(b => b.id === bookingData.barberId);
       const product = products.find(p => p.id === bookingData.productId);
 
-      const apptStatus = isSubscriber ? 'Confirmado' : 'Pendente';
+      const apptStatus = (isSubscriber || paymentMethod === 'cash') ? 'Confirmado' : 'Pendente';
 
-      // Cria o agendamento (Confirmado para assinantes, Pendente para pagamento PIX)
+      // Cria o agendamento (Confirmado para assinantes e dinheiro, Pendente para PIX)
       const pendingAppt = await supabaseService.upsertAppointment({
         user_id: userId,
         clientName: bookingData.clientName,
@@ -217,8 +218,8 @@ export default function BookingPage({ params }: PageProps) {
         status: apptStatus,
       } as any);
 
-      // Assinante: confirma direto sem PIX
-      if (isSubscriber) {
+      // Assinante ou dinheiro: confirma direto sem PIX
+      if (isSubscriber || paymentMethod === 'cash') {
         setComplete(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
@@ -719,6 +720,40 @@ export default function BookingPage({ params }: PageProps) {
                 </div>
               </div>
 
+            {!isSubscriber && (
+              <div className="space-y-3 pt-2">
+                <h3 className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-[0.3em] px-2">Forma de Pagamento</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('pix')}
+                    className="rounded-[2rem] py-5 flex flex-col items-center gap-2 transition-all active:scale-95"
+                    style={{
+                      background: paymentMethod === 'pix' ? 'rgba(0,112,255,0.08)' : 'var(--input-bg)',
+                      border: `1px solid ${paymentMethod === 'pix' ? 'var(--brand-accent)' : 'var(--input-border)'}`,
+                      color: paymentMethod === 'pix' ? 'var(--brand-accent)' : 'var(--text-muted)',
+                    }}
+                  >
+                    <iconify-icon icon="solar:qr-code-bold-duotone" class="text-2xl" />
+                    <span className="text-[10px] font-mono font-black uppercase tracking-[0.2em]">PIX</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('cash')}
+                    className="rounded-[2rem] py-5 flex flex-col items-center gap-2 transition-all active:scale-95"
+                    style={{
+                      background: paymentMethod === 'cash' ? 'rgba(34,197,94,0.08)' : 'var(--input-bg)',
+                      border: `1px solid ${paymentMethod === 'cash' ? '#22c55e' : 'var(--input-border)'}`,
+                      color: paymentMethod === 'cash' ? '#22c55e' : 'var(--text-muted)',
+                    }}
+                  >
+                    <iconify-icon icon="solar:banknote-bold-duotone" class="text-2xl" />
+                    <span className="text-[10px] font-mono font-black uppercase tracking-[0.2em]">Dinheiro</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
               <button
                 type="submit"
                 disabled={!bookingData.time || !bookingData.serviceId || !bookingData.barberId || isSubmitting || checkingSubscription}
@@ -731,8 +766,8 @@ export default function BookingPage({ params }: PageProps) {
                   </div>
                 ) : (
                   <div className="flex items-center justify-center gap-4">
-                    CONFIRMAR AGENDAMENTO
-                    <iconify-icon icon="solar:check-read-bold-duotone" class="text-2xl" />
+                    {paymentMethod === 'cash' ? 'CONFIRMAR AGENDAMENTO' : 'GERAR PIX'}
+                    <iconify-icon icon={paymentMethod === 'cash' ? 'solar:check-read-bold-duotone' : 'solar:qr-code-bold-duotone'} class="text-2xl" />
                   </div>
                 )}
               </button>
