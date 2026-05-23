@@ -190,6 +190,49 @@ export async function POST(request: NextRequest) {
               appointment.id,
               `Pagamento PIX — ${appointment.serviceName} (${appointment.clientName})`,
             );
+
+            if (barberId) {
+              const barberData = await prisma.barber.findFirst({
+                where: { id: barberId },
+                select: { commission: true, commissionType: true },
+              });
+              if (barberData) {
+                const commission = barberData.commissionType === 'percentage'
+                  ? (apptPrice * Number(barberData.commission)) / 100
+                  : Number(barberData.commission);
+                if (commission > 0) {
+                  const alreadyCredited = await prisma.walletTransaction.findFirst({
+                    where: { relatedId: appointment.id, category: 'Commission' },
+                  });
+                  if (!alreadyCredited) {
+                    let barberWallet = await prisma.wallet.findFirst({ where: { barberId, type: 'barber' } });
+                    if (!barberWallet) {
+                      barberWallet = await prisma.wallet.create({
+                        data: { userId, barberId, type: 'barber', balance: 0 },
+                      });
+                    }
+                    await prisma.$transaction([
+                      prisma.wallet.update({
+                        where: { id: barberWallet.id },
+                        data: { balance: { increment: commission } },
+                      }),
+                      prisma.walletTransaction.create({
+                        data: {
+                          userId,
+                          walletId: barberWallet.id,
+                          amount: commission,
+                          type: 'credit',
+                          method: 'pix',
+                          description: `Comissão — ${appointment.serviceName} (${appointment.clientName})`,
+                          category: 'Commission',
+                          relatedId: appointment.id,
+                        },
+                      }),
+                    ]);
+                  }
+                }
+              }
+            }
           }
         } catch (e) { console.error('[creditWallet]', e); }
       }
