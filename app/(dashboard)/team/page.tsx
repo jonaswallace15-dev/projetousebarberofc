@@ -5,6 +5,7 @@ import { Plus, Trash2, Star, ChevronRight, Upload, X as XIcon, Image as ImageIco
 import { supabaseService } from '@/services/supabaseService';
 import { useAuth } from '@/components/AuthProvider';
 import { useUI } from '@/components/UIProvider';
+import { compressImage } from '@/lib/compressImage';
 import type { Barber, Service } from '@/types';
 
 type DaySchedule = {
@@ -78,12 +79,15 @@ function BarberModal({
     supabaseService.getServices().then(setAllServices).catch(() => {});
   }, []);
 
-  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setForm(f => ({ ...f, avatar: ev.target?.result as string }));
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 400, 400, 0.72);
+      setForm(f => ({ ...f, avatar: compressed }));
+    } catch (err: any) {
+      toast(err.message || 'Erro ao processar imagem.', 'error');
+    }
   };
 
   const toggleService = (id: string) => {

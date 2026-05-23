@@ -5,6 +5,7 @@ import { Plus, Edit2, Trash2, Clock, Tag, Upload, X as XIcon, Image as ImageIcon
 import { supabaseService } from '@/services/supabaseService';
 import { useAuth } from '@/components/AuthProvider';
 import { useUI } from '@/components/UIProvider';
+import { compressImage } from '@/lib/compressImage';
 import type { Service, Product } from '@/types';
 
 const emptyService: Partial<Service> = { name: '', price: 0, duration: 30, active: true };
@@ -30,20 +31,21 @@ function ServiceProductModal({
   onDeleteProduct: (id: string) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const { toast } = useUI();
   const isService = type === 'service';
   const form = isService ? serviceForm : productForm;
   const isEditing = !!form.id;
 
-  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const url = ev.target?.result as string;
-      if (isService) onChangeService(f => ({ ...f, image: url }));
-      else onChangeProduct(f => ({ ...f, image: url }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 500, 500, 0.72);
+      if (isService) onChangeService(f => ({ ...f, image: compressed }));
+      else onChangeProduct(f => ({ ...f, image: compressed }));
+    } catch (err: any) {
+      toast(err.message || 'Erro ao processar imagem.', 'error');
+    }
   };
 
   const clearImage = () => {

@@ -33,6 +33,7 @@ export default function BookingPage({ params }: PageProps) {
   const [subscriberPlan, setSubscriberPlan] = useState<string | null>(null);
   const [checkingSubscription, setCheckingSubscription] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cash'>('pix');
+  const subscriptionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
 
   const [bookingData, setBookingData] = useState({
@@ -691,7 +692,10 @@ export default function BookingPage({ params }: PageProps) {
                       onChange={e => {
                         const masked = maskCPF(e.target.value);
                         setBookingData(d => ({ ...d, clientCpf: masked }));
-                        if (userId) checkSubscription(masked, userId);
+                        if (userId) {
+                          if (subscriptionDebounceRef.current) clearTimeout(subscriptionDebounceRef.current);
+                          subscriptionDebounceRef.current = setTimeout(() => checkSubscription(masked, userId), 600);
+                        }
                       }}
                       className="w-full rounded-[2rem] pl-16 pr-8 py-5 text-brand-main outline-none font-medium transition-all"
                       style={{ background: 'var(--input-bg)', border: `1px solid ${bookingData.clientCpf && !isValidCPF(bookingData.clientCpf) ? '#ef4444' : 'var(--input-border)'}` }}

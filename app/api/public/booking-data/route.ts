@@ -21,14 +21,17 @@ export async function GET(request: NextRequest) {
       prisma.service.findMany({
         where: { userId, active: true },
         orderBy: { name: 'asc' },
+        select: { id: true, name: true, price: true, duration: true, image: true },
       }),
       prisma.barber.findMany({
         where: { userId },
         orderBy: { name: 'asc' },
+        select: { id: true, name: true, avatar: true, services: true, schedule: true },
       }),
       prisma.product.findMany({
         where: { userId, active: true, stock: { gt: 0 } },
         orderBy: { name: 'asc' },
+        select: { id: true, name: true, price: true, image: true },
       }),
       prisma.appointment.findMany({
         where: { userId },
@@ -48,7 +51,7 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
         },
       }
     );
