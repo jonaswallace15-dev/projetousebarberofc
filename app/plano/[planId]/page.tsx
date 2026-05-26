@@ -18,8 +18,7 @@ export default function PlanCheckoutPage({ params }: PageProps) {
   const [notFound, setNotFound] = useState(false);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({ name: '', phone: '', email: '', cpf: '' });
-  const [billingDay, setBillingDay] = useState<number | null>(null);
+  const [form, setForm] = useState({ name: '', phone: '', email: '', cpf: '', billingDay: '10' });
 
   useEffect(() => {
     if (!planId || planId === 'null') { setNotFound(true); setLoading(false); return; }
@@ -32,7 +31,7 @@ export default function PlanCheckoutPage({ params }: PageProps) {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const dia = Number(urlParams.get('dia'));
-      if (dia >= 1 && dia <= 28) setBillingDay(dia);
+      if (dia >= 1 && dia <= 28) setForm(prev => ({ ...prev, billingDay: String(dia) }));
     }
   }, [planId]);
 
@@ -58,7 +57,7 @@ export default function PlanCheckoutPage({ params }: PageProps) {
           clientEmail: form.email,
           clientPhone: form.phone,
           clientCpf: form.cpf,
-          billingDay: billingDay || 10,
+          billingDay: Number(form.billingDay) || 10,
         }),
       });
       const data = await res.json();
@@ -192,6 +191,15 @@ export default function PlanCheckoutPage({ params }: PageProps) {
               className="w-full rounded-2xl px-5 py-4 text-white font-medium outline-none text-sm"
               style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${form.email && !isValidEmail(form.email) ? '#ef4444' : 'rgba(255,255,255,0.1)'}` }} />
             {form.email && !isValidEmail(form.email) && <p className="text-[10px] text-red-400 font-mono">E-mail inválido</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Dia de vencimento</label>
+            <input required type="number" min={1} max={28} placeholder="10" value={form.billingDay}
+              onChange={e => setForm(prev => ({ ...prev, billingDay: e.target.value }))}
+              className="w-full rounded-2xl px-5 py-4 text-white font-medium outline-none text-sm"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }} />
+            <p className="text-[10px] font-mono text-white/25">Dia do mês em que será cobrado (1–28)</p>
           </div>
 
           <button
