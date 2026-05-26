@@ -58,6 +58,15 @@ export async function POST(request: NextRequest) {
       const searchData = await searchRes.json();
       if (searchData.data?.length > 0) {
         customerId = searchData.data[0].id;
+        // Atualiza os dados do cliente existente com as infos do formulário
+        await fetch(`${ASAAS_BASE}/customers/${customerId}`, {
+          method: 'PUT', headers: asaasHdr,
+          body: JSON.stringify({
+            name: clientName || searchData.data[0].name,
+            email: clientEmail || searchData.data[0].email || undefined,
+            phone: phoneDigits || searchData.data[0].phone || undefined,
+          }),
+        });
       } else {
         const cRes = await fetch(`${ASAAS_BASE}/customers`, {
           method: 'POST', headers: asaasHdr,
