@@ -8,7 +8,7 @@ export async function GET() {
 
   try {
     const subscriptions = await prisma.clientSubscription.findMany({
-      where: { userId: session.user.id },
+      where: { userId: session.user.id, status: 'active' },
       include: {
         client: { select: { name: true, phone: true, email: true } },
         plan: { select: { name: true, price: true } },
@@ -20,13 +20,14 @@ export async function GET() {
       id: s.id,
       planId: s.planId,
       clientId: s.clientId,
+      status: s.status,
       clientName: s.client.name,
       clientPhone: s.client.phone,
       clientEmail: s.client.email,
       planName: s.plan.name,
       planPrice: s.plan.price,
       asaasSubscriptionId: (s.data as any)?.asaasSubscriptionId || null,
-      subscribedAt: (s.data as any)?.subscribedAt || (s.data as any)?.simulatedAt || null,
+      subscribedAt: (s.data as any)?.activatedAt || (s.data as any)?.subscribedAt || (s.data as any)?.simulatedAt || null,
     })));
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
