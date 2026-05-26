@@ -33,6 +33,8 @@ export default function SubscriptionsPage() {
   const [chargeModal, setChargeModal] = useState<SubscriptionPlan | null>(null);
   const [chargeForm, setChargeForm] = useState({ name: '', phone: '', email: '', taxId: '', billingDay: '' });
   const [charging, setCharging] = useState(false);
+  const [chargePixData, setChargePixData] = useState<{ brCode: string | null; qrCodeImage: string | null } | null>(null);
+  const [chargePixCopied, setChargePixCopied] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const getPlanLink = (plan: SubscriptionPlan) => {
@@ -65,21 +67,17 @@ export default function SubscriptionsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'create-asaas-checkout',
+          action: 'create-lorexpay-checkout',
           planId: chargeModal.id,
           clientName: chargeForm.name,
           clientPhone: chargeForm.phone,
           clientEmail: chargeForm.email,
           clientCpf: chargeForm.taxId,
-          billingType: 'CREDIT_CARD',
-          billingDay: chargeForm.billingDay ? Number(chargeForm.billingDay) : 10,
         }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'Erro ao gerar cobrança');
-      window.open(data.url, '_blank');
-      setChargeModal(null);
-      setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: '' });
+      setChargePixData({ brCode: data.brCode, qrCodeImage: data.qrCodeImage });
     } catch (err: any) {
       toast(err.message || 'Erro ao gerar cobrança', 'error');
     } finally {
@@ -393,14 +391,48 @@ export default function SubscriptionsPage() {
                 </h2>
                 <p className="text-brand-muted text-sm font-mono mt-1">R$ {chargeModal.price}/mês · Recorrência mensal</p>
               </div>
-              <button onClick={() => setChargeModal(null)}
+              <button onClick={() => { setChargeModal(null); setChargePixData(null); setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: '' }); }}
                 className="w-10 h-10 rounded-full flex items-center justify-center text-brand-muted hover:text-brand-main hover:rotate-90 transition-all"
                 style={{ background: 'var(--input-bg)' }}>
                 <XIcon size={16} />
               </button>
             </div>
 
-            {/* Form */}
+            {/* QR Code PIX após gerar cobrança */}
+            {chargePixData ? (
+              <div className="px-8 py-6 flex flex-col items-center gap-5 text-center">
+                <p className="text-brand-muted text-sm font-mono">Apresente o QR code ao cliente para pagamento.</p>
+                {chargePixData.qrCodeImage && (
+                  <div className="p-3 bg-white rounded-2xl">
+                    <img
+                      src={chargePixData.qrCodeImage.startsWith('data:') ? chargePixData.qrCodeImage : `data:image/png;base64,${chargePixData.qrCodeImage}`}
+                      alt="QR Code PIX"
+                      className="w-52 h-52 object-contain"
+                    />
+                  </div>
+                )}
+                {chargePixData.brCode && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(chargePixData.brCode!);
+                      setChargePixCopied(true);
+                      setTimeout(() => setChargePixCopied(false), 2000);
+                    }}
+                    className="w-full py-3 rounded-2xl flex items-center justify-center gap-2 font-mono font-black text-[11px] uppercase tracking-[0.15em] transition-all active:scale-95"
+                    style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
+                  >
+                    {chargePixCopied ? <><Check size={14} className="text-brand-success" /> Copiado!</> : <><Link2 size={14} className="text-brand-accent" /> Copiar código PIX</>}
+                  </button>
+                )}
+                <button
+                  onClick={() => { setChargePixData(null); setChargeModal(null); setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: '' }); }}
+                  className="w-full py-3 rounded-2xl bg-brand-accent text-white font-display font-black text-[11px] uppercase tracking-[0.2em] hover:opacity-90 transition-all"
+                >
+                  Concluir
+                </button>
+              </div>
+            ) : (
+            /* Form */
             <form onSubmit={handleCharge} className="px-8 py-6 space-y-4">
               {/* Nome */}
               <div className="space-y-1.5">
@@ -437,33 +469,14 @@ export default function SubscriptionsPage() {
                 {chargeForm.taxId && !isValidCPF(chargeForm.taxId) && <p className="text-[10px] text-red-400 font-mono">CPF inválido</p>}
               </div>
 
-
-              {/* Dia de vencimento */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Dia de vencimento</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="Ex: 10"
-                  value={chargeForm.billingDay}
-                  onChange={e => {
-                    const raw = e.target.value.replace(/\D/g, '');
-                    const num = Number(raw);
-                    if (raw === '' || (num >= 1 && num <= 28)) setChargeForm(p => ({ ...p, billingDay: raw }));
-                  }}
-                  className="w-full rounded-2xl px-4 py-3 text-brand-main font-mono font-bold outline-none text-sm transition-all"
-                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }}
-                />
-                <p className="text-[10px] font-mono text-brand-muted">Dia do mês (1–28) em que o cliente será cobrado.</p>
-              </div>
-
               <button type="submit" disabled={charging}
                 className="w-full py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[12px] uppercase tracking-[0.2em] shadow-[0_0_25px_rgba(0,112,255,0.3)] hover:opacity-90 transition-all disabled:opacity-40 flex items-center justify-center gap-3 mt-2">
                 {charging
                   ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                  : <><Zap size={15} /> Abrir Checkout <ArrowRight size={15} /></>}
+                  : <><Zap size={15} /> Gerar PIX <ArrowRight size={15} /></>}
               </button>
             </form>
+            )}
           </div>
         </div>
       )}
