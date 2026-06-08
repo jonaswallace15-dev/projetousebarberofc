@@ -23,18 +23,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Este barbeiro já possui uma conta' }, { status: 400 });
   }
 
-  const hashed = await bcrypt.hash(password, 10);
-
-  // Verifica se o email já está em uso
   const emailInUse = await prisma.user.findUnique({ where: { email } });
   if (emailInUse) return NextResponse.json({ error: 'Este e-mail já está cadastrado.' }, { status: 400 });
 
-  let userAccount = await prisma.user.findUnique({ where: { email } });
-  if (!userAccount) {
-    userAccount = await prisma.user.create({
-      data: { email, password: hashed, name: barber.name, role: 'Barbeiro' },
-    });
-  }
+  const hashed = await bcrypt.hash(password, 10);
+
+  const userAccount = await prisma.user.create({
+    data: { email, password: hashed, name: barber.name, role: 'Barbeiro' },
+  });
 
   // Vincula o User ao Barber
   await prisma.barber.update({

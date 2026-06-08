@@ -48,12 +48,11 @@ export default function ConvitePage() {
 
       setSuccess(true);
 
-      // Loga automaticamente
-      await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
+      const result = await signIn('credentials', { email, password, redirect: false });
+      if (result?.error) {
+        setError('Conta criada, mas não foi possível fazer login automático. Acesse a página de login.');
+        return;
+      }
 
       router.push('/dashboard');
     } catch {
