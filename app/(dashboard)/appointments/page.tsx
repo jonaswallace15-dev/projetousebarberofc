@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { CheckCircle2, Copy, Smartphone, Trash2, Edit3, XCircle, ChevronLeft, ChevronRight, TrendingUp, X, QrCode, Download, Printer } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { CheckCircle2, Copy, Trash2, Edit3, XCircle, ChevronLeft, ChevronRight, TrendingUp, X, QrCode, Download, Printer, Banknote } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { ShimmerButton } from '@/components/ui/shimmer-button';
 import { useAuth } from '@/components/AuthProvider';
@@ -10,7 +10,7 @@ import { supabaseService } from '@/services/supabaseService';
 import type { Appointment, Service, Barber } from '@/types';
 
 const emptyForm = {
-  id: '', name: '', phone: '', date: new Date().toISOString().split('T')[0],
+  id: '', name: '', phone: '', cpf: '', date: new Date().toISOString().split('T')[0],
   time: '09:00', serviceId: '', barberId: ''
 };
 
@@ -33,6 +33,11 @@ export default function AppointmentsPage() {
   const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
 
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'pix'>('cash');
+  const [pixData, setPixData] = useState<{ brCode: string | null; pixQrCode: string | null; appointmentId: string } | null>(null);
+  const [pixCopied, setPixCopied] = useState(false);
+  const [pixPaid, setPixPaid] = useState(false);
+
   useEffect(() => {
     if (!user) return;
     supabaseService.getAppointments()
@@ -49,6 +54,28 @@ export default function AppointmentsPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [user]);
+
+  // Polling de status do PIX
+  useEffect(() => {
+    if (!pixData) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/payments/pix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'status', billingId: pixData.appointmentId }),
+        });
+        const { status } = await res.json();
+        if (['PAID', 'RECEIVED', 'CONFIRMED', 'COMPLETED', 'APPROVED'].includes(status)) {
+          clearInterval(interval);
+          setPixPaid(true);
+          setAppointments(prev => prev.map(a => a.id === pixData.appointmentId ? { ...a, status: 'Confirmado' } : a));
+          setTimeout(() => closeModal(), 2500);
+        }
+      } catch {}
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [pixData]);
 
   const calendarDays = useMemo(() => {
     const year = currentMonth.getFullYear();
@@ -80,35 +107,88 @@ export default function AppointmentsPage() {
 
   const handleCopyLink = () => { navigator.clipboard.writeText(bookingUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
+  const closeModal = () => {
+    setModalOpen(false);
+    setPixData(null);
+    setPixPaid(false);
+    setPixCopied(false);
+  };
+
   const openNew = (date?: Date) => {
     const d = date || selectedDate;
     setForm({ ...emptyForm, date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`, serviceId: services[0]?.id || '', barberId: team[0]?.id || '' });
+    setPaymentMethod('cash');
+    setPixData(null);
+    setPixPaid(false);
     setModalOpen(true);
   };
 
   const openEdit = (app: Appointment) => {
-    setForm({ id: app.id, name: app.clientName, phone: '', date: app.date, time: app.time, serviceId: app.serviceId, barberId: app.barberId });
+    setForm({ id: app.id, name: app.clientName, phone: '', cpf: '', date: app.date, time: app.time, serviceId: app.serviceId, barberId: app.barberId });
+    setPaymentMethod('cash');
+    setPixData(null);
+    setPixPaid(false);
     setModalOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isNew = !form.id;
+    const usePix = isNew && paymentMethod === 'pix';
+
+    if (usePix && form.cpf.replace(/\D/g, '').length !== 11) {
+      toast('CPF obrigatório para pagamento via PIX (11 dígitos)', 'error');
+      return;
+    }
+
     setSaving(true);
     try {
       const barber = team.find(b => b.id === form.barberId);
       const service = services.find(s => s.id === form.serviceId);
-      const payload = {
-        id: form.id || Math.random().toString(36).substr(2, 9),
+      const payload: any = {
+        ...(form.id ? { id: form.id } : {}),
         clientId: '', clientName: form.name, barberId: form.barberId,
         barberName: barber?.name || '?', serviceId: form.serviceId,
         serviceName: service?.name || '?', date: form.date, time: form.time,
-        status: 'Confirmado' as const, price: service?.price || 0
+        status: usePix ? 'Pendente' : 'Confirmado',
+        price: service?.price || 0,
+        clientPhone: form.phone,
       };
       const saved = await supabaseService.upsertAppointment(payload);
       setAppointments(prev => form.id ? prev.map(a => a.id === payload.id ? { ...a, ...saved } : a) : [saved, ...prev]);
-      setModalOpen(false);
-    } catch (err: any) { toast(err.message || 'Erro ao salvar agendamento', 'error'); }
-    finally { setSaving(false); }
+
+      if (!usePix) {
+        closeModal();
+        return;
+      }
+
+      // Gera cobrança PIX
+      const pixRes = await fetch('/api/payments/pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          serviceId: form.serviceId,
+          userId: user?.id,
+          taxId: form.cpf.replace(/\D/g, ''),
+          name: form.name,
+          phone: form.phone,
+          appointmentId: saved.id,
+        }),
+      });
+      const pixResult = await pixRes.json();
+      if (!pixRes.ok || pixResult.error) {
+        toast(pixResult.error || 'Erro ao gerar PIX', 'error');
+        closeModal();
+        return;
+      }
+
+      setPixData({ brCode: pixResult.brCode, pixQrCode: pixResult.pixQrCode, appointmentId: saved.id });
+    } catch (err: any) {
+      toast(err.message || 'Erro ao salvar agendamento', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateStatus = async (id: string, status: Appointment['status']) => {
@@ -377,56 +457,158 @@ export default function AppointmentsPage() {
         </div>
       )}
 
-      {/* MODAL */}
+      {/* MODAL DE AGENDAMENTO */}
       {modalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
-          <div className="flashlight-card w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden" style={{ background: 'var(--header-bg)', border: '1px solid var(--card-border)' }}>
+          <div className="flashlight-card w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden" style={{ background: 'var(--header-bg)', border: '1px solid var(--card-border)', maxHeight: '90vh', overflowY: 'auto' }}>
+
+            {/* Cabeçalho */}
             <div className="px-10 pt-10 pb-6 flex justify-between items-start">
               <div>
                 <span className="text-[10px] font-mono font-black text-brand-accent uppercase tracking-widest mb-3 block">System Override</span>
-                <h2 className="text-3xl font-display font-black text-brand-main italic uppercase">{form.id ? 'Editar' : 'Novo'} Agendamento<span className="text-brand-accent">.</span></h2>
+                <h2 className="text-3xl font-display font-black text-brand-main italic uppercase">
+                  {pixPaid ? 'Pago!' : pixData ? 'Aguardando PIX' : (form.id ? 'Editar' : 'Novo')} Agendamento<span className="text-brand-accent">.</span>
+                </h2>
               </div>
-              <button onClick={() => setModalOpen(false)} className="w-12 h-12 rounded-full flex items-center justify-center text-brand-muted hover:text-brand-main transition-all hover:rotate-90" style={{ background: 'var(--input-bg)' }}>
+              <button onClick={closeModal} className="w-12 h-12 rounded-full flex items-center justify-center text-brand-muted hover:text-brand-main transition-all hover:rotate-90" style={{ background: 'var(--input-bg)' }}>
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleSave} className="px-10 pb-10 space-y-5">
-              <div className="grid grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Cliente</label>
-                  <input required value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Nome completo" className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} />
+
+            {/* Tela de sucesso PIX pago */}
+            {pixPaid && (
+              <div className="px-10 pb-10 flex flex-col items-center gap-4 text-center">
+                <div className="w-20 h-20 rounded-full bg-brand-success/10 border border-brand-success/20 flex items-center justify-center">
+                  <CheckCircle2 size={36} className="text-brand-success" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">WhatsApp</label>
-                  <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="(00) 00000-0000" className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} />
+                <p className="text-brand-muted text-sm">Pagamento confirmado! Agendamento ativado.</p>
+              </div>
+            )}
+
+            {/* Tela de QR Code PIX */}
+            {pixData && !pixPaid && (
+              <div className="px-10 pb-10 flex flex-col items-center gap-6 text-center">
+                <p className="text-brand-muted text-sm leading-relaxed">Apresente o QR Code ao cliente para concluir o pagamento.</p>
+
+                {pixData.pixQrCode && (
+                  <div className="p-5 bg-white rounded-[2rem]">
+                    <img
+                      src={pixData.pixQrCode.startsWith('http') || pixData.pixQrCode.startsWith('data:') ? pixData.pixQrCode : `data:image/png;base64,${pixData.pixQrCode}`}
+                      alt="QR Code PIX"
+                      className="w-52 h-52 object-contain"
+                    />
+                  </div>
+                )}
+
+                {pixData.brCode && (
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(pixData.brCode!); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000); }}
+                    className="w-full py-4 rounded-2xl font-mono font-black text-[11px] uppercase tracking-widest transition-all flex items-center justify-center gap-3"
+                    style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-muted)' }}
+                  >
+                    {pixCopied ? <><CheckCircle2 size={16} className="text-brand-success" /> Código copiado!</> : <><Copy size={16} className="text-brand-accent" /> Copiar código PIX</>}
+                  </button>
+                )}
+
+                <div className="flex items-center gap-2 text-brand-muted text-[11px] font-mono">
+                  <div className="w-2 h-2 rounded-full bg-brand-accent animate-ping" />
+                  Aguardando pagamento...
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-5">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Data</label>
-                  <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all font-bold" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} />
+            )}
+
+            {/* Formulário normal */}
+            {!pixData && !pixPaid && (
+              <form onSubmit={handleSave} className="px-10 pb-10 space-y-5">
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Cliente</label>
+                    <input required value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Nome completo" className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">WhatsApp</label>
+                    <input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="(00) 00000-0000" className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Data</label>
+                    <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all font-bold" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Horário</label>
+                    <input type="time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all font-bold" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Horário</label>
-                  <input type="time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all font-bold" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} />
+                  <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Serviço</label>
+                  <select value={form.serviceId} onChange={e => setForm({...form, serviceId: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all appearance-none cursor-pointer" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }}>
+                    {services.map(s => <option key={s.id} value={s.id}>{s.name} - R$ {s.price}</option>)}
+                  </select>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Serviço</label>
-                <select value={form.serviceId} onChange={e => setForm({...form, serviceId: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all appearance-none cursor-pointer" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }}>
-                  {services.map(s => <option key={s.id} value={s.id}>{s.name} - R$ {s.price}</option>)}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Barbeiro</label>
-                <select value={form.barberId} onChange={e => setForm({...form, barberId: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all appearance-none cursor-pointer" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }}>
-                  {team.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </select>
-              </div>
-              <ShimmerButton type="submit" disabled={saving} className="w-full py-4 text-[11px] font-mono uppercase tracking-widest">
-                {saving ? 'SALVANDO...' : 'CONFIRMAR AGENDAMENTO'}
-              </ShimmerButton>
-            </form>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Barbeiro</label>
+                  <select value={form.barberId} onChange={e => setForm({...form, barberId: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all appearance-none cursor-pointer" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }}>
+                    {team.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </div>
+
+                {/* Forma de pagamento — apenas em novos agendamentos */}
+                {!form.id && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Forma de Pagamento</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('cash')}
+                        className="rounded-2xl py-4 flex flex-col items-center gap-2 transition-all active:scale-95"
+                        style={{
+                          background: paymentMethod === 'cash' ? 'rgba(34,197,94,0.08)' : 'var(--input-bg)',
+                          border: `1px solid ${paymentMethod === 'cash' ? '#22c55e' : 'var(--card-border)'}`,
+                          color: paymentMethod === 'cash' ? '#22c55e' : 'var(--text-muted)',
+                        }}
+                      >
+                        <Banknote size={20} />
+                        <span className="text-[10px] font-mono font-black uppercase tracking-[0.15em]">Dinheiro</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('pix')}
+                        className="rounded-2xl py-4 flex flex-col items-center gap-2 transition-all active:scale-95"
+                        style={{
+                          background: paymentMethod === 'pix' ? 'rgba(0,112,255,0.08)' : 'var(--input-bg)',
+                          border: `1px solid ${paymentMethod === 'pix' ? 'var(--brand-accent)' : 'var(--card-border)'}`,
+                          color: paymentMethod === 'pix' ? 'var(--brand-accent)' : 'var(--text-muted)',
+                        }}
+                      >
+                        <QrCode size={20} />
+                        <span className="text-[10px] font-mono font-black uppercase tracking-[0.15em]">PIX</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* CPF — obrigatório apenas quando PIX é selecionado */}
+                {!form.id && paymentMethod === 'pix' && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">CPF do Cliente</label>
+                    <input
+                      type="text"
+                      value={form.cpf}
+                      onChange={e => setForm({...form, cpf: e.target.value})}
+                      placeholder="000.000.000-00"
+                      maxLength={14}
+                      className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all"
+                      style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }}
+                    />
+                  </div>
+                )}
+
+                <ShimmerButton type="submit" disabled={saving} className="w-full py-4 text-[11px] font-mono uppercase tracking-widest flex items-center justify-center gap-3">
+                  {saving ? 'SALVANDO...' : !form.id && paymentMethod === 'pix' ? <><QrCode size={16} /> GERAR PIX</> : <><CheckCircle2 size={16} /> CONFIRMAR AGENDAMENTO</>}
+                </ShimmerButton>
+              </form>
+            )}
           </div>
         </div>
       )}
