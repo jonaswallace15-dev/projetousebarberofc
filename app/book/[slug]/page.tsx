@@ -229,7 +229,7 @@ export default function BookingPage({ params }: PageProps) {
 
       pendingAppointmentRef.current = { ...pendingAppt, user_id: userId };
 
-      // Cria a cobrança PIX via Asaas
+      // Cria a cobrança PIX
       const billingRes = await fetch('/api/payments/pix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

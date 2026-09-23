@@ -3,19 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { createTransfer } from '@/lib/pagarme';
 import { NextRequest, NextResponse } from 'next/server';
 
-// ── Código Asaas mantido pra referência — saques antigos (anteriores à Fase 3 da
-// migração Pagar.me) foram pagos manualmente pelo admin direto no painel do Asaas,
-// fora do app. Não usar em saques novos, todos passam a sair via Transfers do
-// recipient da barbearia no Pagar.me (ver sendTransferViaPagarme abaixo).
-//
-// const ASAAS_URL = process.env.ASAAS_URL || 'https://api.asaas.com/v3';
-// const ASAAS_API_KEY = process.env.ASAAS_API_KEY
-//   ? (process.env.ASAAS_API_KEY.startsWith('$') ? process.env.ASAAS_API_KEY : `$${process.env.ASAAS_API_KEY}`)
-//   : undefined;
-//
-// function detectPixKeyType(key: string): string { ... }
-// async function sendPixViaAsaas(pixKey, amount, description) { ... }
-
+// Saques antigos (anteriores à Fase 3 da migração Pagar.me) foram pagos manualmente
+// pelo admin direto no painel do Asaas, fora do app. Todos os novos saem via Transfers
+// do recipient da barbearia no Pagar.me (ver sendTransferViaPagarme abaixo).
 async function sendTransferViaPagarme(userId: string, amount: number): Promise<{ success: boolean; transferId?: string; error?: string }> {
   const recipient = await prisma.pagarmeRecipient.findUnique({ where: { userId } });
   if (!recipient?.pagarmeRecipientId || recipient.status !== 'active') {

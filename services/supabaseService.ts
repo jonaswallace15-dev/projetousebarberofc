@@ -117,29 +117,6 @@ export const supabaseService = {
     });
   },
 
-  // Asaas Integration (via Next.js API)
-  async callAsaasFunction(action: string, data: any): Promise<any> {
-    return apiFetch('/api/payments/asaas', {
-      method: 'POST',
-      body: JSON.stringify({ action: 'edge', edgeAction: action, edgeData: data }),
-    });
-  },
-  async createAsaasCustomer(data: any): Promise<any> {
-    return this.callAsaasFunction('create-customer', data);
-  },
-  async createAsaasSubscription(subscriptionData: any): Promise<any> {
-    return this.callAsaasFunction('create-subscription', subscriptionData);
-  },
-  async syncAsaasSubscription(subscriptionId: string): Promise<any> {
-    return this.callAsaasFunction('get-subscription-status', { subscriptionId });
-  },
-  async cancelAsaasSubscription(subscriptionId: string): Promise<any> {
-    return this.callAsaasFunction('cancel-subscription', { subscriptionId });
-  },
-  async getAsaasBalance(): Promise<any> {
-    return this.callAsaasFunction('get-balance', {});
-  },
-
   // Assinaturas de Clientes
   async getClientSubscriptions(): Promise<any[]> {
     return apiFetch('/api/subscriptions');
