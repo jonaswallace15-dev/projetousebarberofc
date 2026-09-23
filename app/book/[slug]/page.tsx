@@ -207,6 +207,7 @@ export default function BookingPage({ params }: PageProps) {
         clientName: bookingData.clientName,
         clientPhone: bookingData.clientPhone,
         clientEmail: bookingData.clientEmail,
+        clientCpf: bookingData.clientCpf,
         clientId: '',
         barberId: bookingData.barberId,
         barberName: barber?.name || '',

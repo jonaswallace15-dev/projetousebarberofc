@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
     const clientPhone = body.clientPhone ?? body.client_phone ?? null;
     if (clientPhone) {
       const clientEmail = body.clientEmail ?? body.client_email ?? null;
+      const clientCpfDigits = (body.clientCpf ?? body.client_cpf ?? '').replace(/\D/g, '') || null;
       try {
         const confirmedAppts = await prisma.appointment.findMany({
           where: { userId, clientName: clientName || '', status: 'Confirmado' },
@@ -141,11 +142,19 @@ export async function POST(request: NextRequest) {
         if (existing) {
           await prisma.client.update({
             where: { id: existing.id },
-            data: { name: clientName || existing.name, totalSpent, frequency, tag, lastVisit, ...(clientEmail ? { email: clientEmail } : {}) },
+            data: {
+              name: clientName || existing.name,
+              totalSpent,
+              frequency,
+              tag,
+              lastVisit,
+              ...(clientEmail ? { email: clientEmail } : {}),
+              ...(clientCpfDigits && !existing.cpfCnpj ? { cpfCnpj: clientCpfDigits } : {}),
+            },
           });
         } else {
           await prisma.client.create({
-            data: { userId, name: clientName || '', phone: clientPhone, email: clientEmail || null, totalSpent, frequency, tag, lastVisit },
+            data: { userId, name: clientName || '', phone: clientPhone, email: clientEmail || null, cpfCnpj: clientCpfDigits, totalSpent, frequency, tag, lastVisit },
           });
         }
       } catch (e) { console.error('[client-upsert]', e); }
