@@ -57,7 +57,7 @@ export default function LandingPage() {
     const slides = [
         {
             img: "/hero/slide1.png",
-            title: "PERFORMANCE",
+            title: "DESEMPENHO",
             subtitle: "SUPERIOR."
         },
         {
@@ -442,7 +442,7 @@ export default function LandingPage() {
                                     <div className="h-full bg-brand-accent w-full animate-shimmer"></div>
                                 </div>
                                 <div className="flex justify-between items-center text-[8px] font-mono uppercase tracking-widest opacity-50">
-                                    <span>Sync</span>
+                                    <span>Sincronia</span>
                                     <span>Global</span>
                                 </div>
                             </div>
@@ -544,7 +544,7 @@ export default function LandingPage() {
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="font-display font-black text-sm md:text-lg tracking-tighter text-white leading-none">USEBARBER</span>
-                                            <span className="text-[6px] md:text-[7px] font-mono text-brand-accent tracking-[0.3em] uppercase mt-0.5 md:mt-1 hidden sm:block">PRO SUITE</span>
+                                            <span className="text-[6px] md:text-[7px] font-mono text-brand-accent tracking-[0.3em] uppercase mt-0.5 md:mt-1 hidden sm:block">SUÍTE PRO</span>
                                         </div>
                                     </div>
 
@@ -606,8 +606,8 @@ export default function LandingPage() {
                                                     </div>
                                                     <div className="h-16 w-px bg-white/10 hidden md:block"></div>
                                                     <div className="flex flex-col items-end">
-                                                        <span className="text-[9px] text-brand-muted uppercase font-mono tracking-widest mb-2">Top_Performance_Staff</span>
-                                                        <span className="text-3xl md:text-4xl font-display font-black text-brand-accent italic drop-shadow-[0_0_20px_var(--brand-accent-glow)]">Staff_Elite</span>
+                                                        <span className="text-[9px] text-brand-muted uppercase font-mono tracking-widest mb-2">Top_Desempenho_Equipe</span>
+                                                        <span className="text-3xl md:text-4xl font-display font-black text-brand-accent italic drop-shadow-[0_0_20px_var(--brand-accent-glow)]">Equipe_Elite</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -644,7 +644,7 @@ export default function LandingPage() {
                                                     <div className="flex justify-between items-center mb-14">
                                                         <div className="flex items-center gap-4">
                                                             <iconify-icon icon="solar:chart-2-bold-duotone" class="text-2xl text-brand-accent"></iconify-icon>
-                                                            <h4 className="text-[12px] font-mono text-white tracking-[0.4em] uppercase">Atividade_Nexus_Realtime</h4>
+                                                            <h4 className="text-[12px] font-mono text-white tracking-[0.4em] uppercase">Atividade_Nexus_TempoReal</h4>
                                                         </div>
                                                         <div className="flex gap-2">
                                                             {['24H', '7D', '30D'].map(t => (
@@ -681,7 +681,7 @@ export default function LandingPage() {
                                                             <iconify-icon icon="solar:magic-stick-bold-duotone" class="text-brand-accent text-3xl animate-spin-slow"></iconify-icon>
                                                         </div>
                                                         <div>
-                                                            <h4 className="text-[13px] font-mono text-white tracking-[0.3em] uppercase">IA_Aura_Insights</h4>
+                                                            <h4 className="text-[13px] font-mono text-white tracking-[0.3em] uppercase">IA_Aura_Análises</h4>
                                                             <span className="text-[8px] font-mono text-brand-muted animate-pulse">PROCESSANDO_DADOS...</span>
                                                         </div>
                                                     </div>
@@ -737,7 +737,7 @@ export default function LandingPage() {
                                                     {[
                                                         { time: '09:00', client: 'Marcos Silva', service: 'Corte + Barba', status: 'Confirmado', type: 'success' },
                                                         { time: '10:30', client: 'Ricardo Oliveira', service: 'Degradê Navalhado', status: 'Em espera', type: 'warning' },
-                                                        { time: '11:45', client: 'Staff_Elite', service: 'Treinamento Equipe', status: 'Bloqueado', type: 'muted' },
+                                                        { time: '11:45', client: 'Equipe_Elite', service: 'Treinamento Equipe', status: 'Bloqueado', type: 'muted' },
                                                         { time: '14:00', client: 'João Gabriel', service: 'Pigmentação', status: 'Confirmado', type: 'success' },
                                                         { time: '15:30', client: 'Disponível', service: '—', status: 'AGENDAR', type: 'accent', active: true },
                                                         { time: '17:00', client: 'Carlos Magno', service: 'Corte Clássico', status: 'Confirmado', type: 'success' },
@@ -778,7 +778,7 @@ export default function LandingPage() {
 
                                                 <div className="space-y-6">
                                                     <div className="dash-content-card p-8 bg-brand-accent/5 border-brand-accent/20 relative overflow-hidden group">
-                                                        <h4 className="text-[10px] font-mono text-white tracking-[0.3em] uppercase mb-8">Performance_Day</h4>
+                                                        <h4 className="text-[10px] font-mono text-white tracking-[0.3em] uppercase mb-8">Desempenho_Dia</h4>
                                                         <div className="space-y-6">
                                                             <div className="flex justify-between items-end">
                                                                 <div>
@@ -877,7 +877,7 @@ export default function LandingPage() {
                                                                 </span>
                                                                 <span className="text-[10px] text-brand-muted flex items-center gap-1 font-mono uppercase tracking-tighter">
                                                                     <iconify-icon icon="solar:bill-list-bold-duotone" class="text-blue-400"></iconify-icon>
-                                                                    LTV: R$ {client.visits * 85}
+                                                                    Total: R$ {client.visits * 85}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -928,10 +928,10 @@ export default function LandingPage() {
                                                 {/* Simulated Cashflow Chart */}
                                                 <div className="dash-content-card p-8 border-white/10">
                                                     <div className="flex justify-between items-center mb-10">
-                                                        <h4 className="text-[11px] font-mono text-white tracking-[0.3em] uppercase">Fluxo de Caixa Weekly</h4>
+                                                        <h4 className="text-[11px] font-mono text-white tracking-[0.3em] uppercase">Fluxo de Caixa Semanal</h4>
                                                         <div className="flex gap-4">
-                                                            <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-brand-accent"></span><span className="text-[8px] font-mono text-brand-muted">IN</span></div>
-                                                            <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-400"></span><span className="text-[8px] font-mono text-brand-muted">OUT</span></div>
+                                                            <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-brand-accent"></span><span className="text-[8px] font-mono text-brand-muted">ENTRADA</span></div>
+                                                            <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-400"></span><span className="text-[8px] font-mono text-brand-muted">SAÍDA</span></div>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-end justify-between h-[160px] gap-2 lg:gap-4 px-2">
@@ -1281,7 +1281,7 @@ export default function LandingPage() {
                                 <ul className="space-y-6 text-[9px] md:text-[11px] font-mono uppercase tracking-widest text-brand-muted font-bold">
                                     <li><a href="#" className="hover:text-brand-accent transition-colors">Especificações</a></li>
                                     <li><a href="#" className="hover:text-brand-accent transition-colors">Nexus_API</a></li>
-                                    <li><a href="#" className="hover:text-brand-accent transition-colors">Core_Engine</a></li>
+                                    <li><a href="#" className="hover:text-brand-accent transition-colors">Núcleo_Central</a></li>
                                 </ul>
                             </div>
                             <div>
@@ -1297,7 +1297,7 @@ export default function LandingPage() {
                                     Acesso Alpha
                                 </p>
                                 <div className="relative">
-                                    <input type="email" placeholder="EMAIL_ADDR" className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-4 text-[10px] font-mono outline-none focus:border-brand-accent transition-all text-white placeholder:text-white/20" />
+                                    <input type="email" placeholder="SEU_EMAIL" className="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-4 text-[10px] font-mono outline-none focus:border-brand-accent transition-all text-white placeholder:text-white/20" />
                                     <button className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-accent hover:scale-125 transition-transform"><ArrowRight size={20} /></button>
                                 </div>
                             </div>
@@ -1305,13 +1305,13 @@ export default function LandingPage() {
                     </div>
 
                     <div className="pt-12 md:pt-16 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-10 text-[9px] md:text-[11px] font-mono text-brand-muted uppercase tracking-[0.3em] md:tracking-[0.5em] text-center md:text-left">
-                        <p>© 2026 UseBarber. High Precision Software Engineering.</p>
+                        <p>© 2026 UseBarber. Engenharia de Software de Alta Precisão.</p>
                         <div className="flex flex-wrap justify-center gap-10 md:gap-16">
                             <span className="flex items-center gap-3">
                                 <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_15px_#10b981]"></span>
                                 OPERACIONAL: 100%
                             </span>
-                            <span>BUILD_V3.4.5_LATEST</span>
+                            <span>VERSÃO_3.4.5_ATUAL</span>
                         </div>
                     </div>
                 </div>

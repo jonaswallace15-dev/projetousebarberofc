@@ -9,7 +9,7 @@ const NAV = [
   { id: 'dashboard',   label: 'Visão Geral',       icon: 'solar:chart-2-bold-duotone' },
   { id: 'shops',       label: 'Barbearias',         icon: 'solar:shop-2-bold-duotone' },
   { id: 'finance',     label: 'Financeiro',         icon: 'solar:dollar-minimalistic-bold-duotone' },
-  { id: 'analytics',   label: 'Analytics',          icon: 'solar:graph-bold-duotone' },
+  { id: 'analytics',   label: 'Análises',           icon: 'solar:graph-bold-duotone' },
   { id: 'plans',       label: 'Planos',             icon: 'solar:star-bold-duotone' },
   { id: 'alerts',      label: 'Alertas',            icon: 'solar:bell-bing-bold-duotone' },
   { id: 'withdrawals', label: 'Saques',             icon: 'solar:transfer-horizontal-bold-duotone' },
@@ -119,7 +119,7 @@ export default function AdminPage() {
             </div>
             <div>
               <p className="text-[11px] font-mono font-black text-rose-500 uppercase tracking-widest leading-none">UseBarber</p>
-              <p className="text-[9px] font-mono text-brand-muted uppercase tracking-[0.15em] mt-0.5">Admin Suite</p>
+              <p className="text-[9px] font-mono text-brand-muted uppercase tracking-[0.15em] mt-0.5">Painel Admin</p>
             </div>
           </div>
         </div>
@@ -576,12 +576,12 @@ export default function AdminPage() {
                 },
                 {
                   name: 'Pro', price: 'R$ 97/mês', accent: 'text-brand-accent', border: 'border-brand-accent/30',
-                  features: ['Barbeiros ilimitados', 'Pagamentos PIX integrado', 'Carteira digital', 'Analytics avançado', 'Notificações push'],
+                  features: ['Barbeiros ilimitados', 'Pagamentos PIX integrado', 'Carteira digital', 'Análises avançadas', 'Notificações push'],
                   active: 0, highlight: true,
                 },
                 {
                   name: 'Enterprise', price: 'Sob consulta', accent: 'text-rose-400', border: 'border-rose-500/30',
-                  features: ['Tudo do Pro', 'SLA dedicado 99.9%', 'Onboarding personalizado', 'API access completo', 'White-label'],
+                  features: ['Tudo do Pro', 'SLA dedicado 99.9%', 'Integração guiada personalizada', 'Acesso completo à API', 'Marca branca'],
                   active: 0, highlight: false,
                 },
               ].map(plan => (

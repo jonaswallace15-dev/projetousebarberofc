@@ -66,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userRole, hid
             <span className="font-display font-black text-xl tracking-tighter text-brand-main uppercase leading-none whitespace-nowrap">
               USE<span className="text-brand-accent">BARBER</span>
             </span>
-            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-brand-muted">Pro Suite</span>
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-brand-muted">Versão Beta</span>
           </div>
         </div>
 
@@ -111,14 +111,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userRole, hid
           <div className={`mt-auto transition-all duration-300 ${collapsed ? 'lg:p-2' : 'p-6'}`}>
             {collapsed ? (
               <div className="hidden lg:flex justify-center py-3">
-                <div className="w-9 h-9 rounded-xl bg-brand-accent/10 border border-brand-accent/30 flex items-center justify-center text-brand-accent text-xs font-black" title="Elite Member">
+                <div className="w-9 h-9 rounded-xl bg-brand-accent/10 border border-brand-accent/30 flex items-center justify-center text-brand-accent text-xs font-black" title="Membro Elite">
                   ★
                 </div>
               </div>
             ) : (
               <div className="flashlight-card p-6 rounded-3xl relative group overflow-hidden" style={{ border: '1px solid var(--card-border)', background: 'var(--nav-item-hover)' }}>
                 <div className="absolute -top-10 -right-10 w-24 h-24 bg-brand-accent/10 rounded-full blur-2xl group-hover:bg-brand-accent/20 transition-all duration-500" />
-                <p className="text-[9px] font-mono text-brand-accent uppercase tracking-widest font-bold mb-2">Master Tier</p>
+                <p className="text-[9px] font-mono text-brand-accent uppercase tracking-widest font-bold mb-2">Nível Master</p>
                 <p className="text-sm font-display font-black text-brand-main uppercase tracking-tight">Assinatura Ativa</p>
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between text-[10px] font-mono text-brand-muted uppercase">

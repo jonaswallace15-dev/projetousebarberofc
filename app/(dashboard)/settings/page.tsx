@@ -519,7 +519,7 @@ export default function SettingsPage() {
                     <iconify-icon icon="solar:bell-bing-bold-duotone" class="text-6xl" />
                   </div>
                   <div className="flex-1 text-center md:text-left">
-                    <h3 className="text-3xl font-display font-black text-white uppercase tracking-tight mb-2">Web Push System</h3>
+                    <h3 className="text-3xl font-display font-black text-white uppercase tracking-tight mb-2">Notificações Push</h3>
                     <p className="text-brand-muted font-medium text-lg leading-relaxed max-w-xl">
                       Receba alertas em tempo real diretamente no seu dispositivo.
                     </p>
@@ -530,7 +530,7 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-4">
                     <div className="w-3 h-3 rounded-full bg-brand-success shadow-[0_0_15px_#10B981] animate-pulse" />
                     <div>
-                      <p className="text-brand-main font-display font-black uppercase tracking-tight">Status do Engine</p>
+                      <p className="text-brand-main font-display font-black uppercase tracking-tight">Status do Sistema</p>
                       <p className="text-[10px] font-mono text-brand-muted uppercase font-bold tracking-widest">Protocolo VAPID Ativo</p>
                     </div>
                   </div>
@@ -542,8 +542,8 @@ export default function SettingsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {[
-                  { icon: 'solar:smartphone-2-bold-duotone', title: 'Mobile Experience', desc: 'Instale nosso PWA para receber notificações nativas no seu smartphone.', badge: 'Add to Home Screen', badgeColor: 'brand-accent' },
-                  { icon: 'solar:share-circle-bold-duotone', title: 'Central de Reservas', desc: 'Seus clientes recebem confirmação imediata via WhatsApp.', badge: 'WhatsApp Engine v2.0', badgeColor: 'brand-success' },
+                  { icon: 'solar:smartphone-2-bold-duotone', title: 'Experiência Móvel', desc: 'Instale nosso PWA para receber notificações nativas no seu smartphone.', badge: 'Adicionar à Tela Inicial', badgeColor: 'brand-accent' },
+                  { icon: 'solar:share-circle-bold-duotone', title: 'Central de Reservas', desc: 'Seus clientes recebem confirmação imediata via WhatsApp.', badge: 'Integração WhatsApp v2.0', badgeColor: 'brand-success' },
                 ].map(card => (
                   <div key={card.title} className="flashlight-card p-10 rounded-[3.5rem]">
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-brand-accent mb-6" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>

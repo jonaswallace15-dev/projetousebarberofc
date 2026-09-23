@@ -116,7 +116,7 @@ export default function AppointmentsPage() {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
             <div className="max-w-xl">
               <div className="inline-flex items-center gap-2 mb-4 bg-emerald-500/10 text-emerald-500 text-[10px] font-mono font-black border border-emerald-500/20 px-3 py-1 rounded-full uppercase tracking-widest">
-                Live Booking Enabled
+Agendamento Online Ativo
               </div>
               <h2 className="text-3xl font-display font-black text-brand-main uppercase tracking-tight mb-2">
                 Portal do Cliente<span className="text-brand-accent italic">.</span>

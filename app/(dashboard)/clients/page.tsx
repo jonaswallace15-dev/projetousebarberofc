@@ -174,7 +174,7 @@ export default function ClientsPage() {
           <div className="flashlight-card w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden" style={{ background: 'var(--header-bg)', border: '1px solid var(--card-border)' }}>
             <div className="px-10 pt-10 pb-6 flex justify-between items-start">
               <div>
-                <span className="text-[10px] font-mono font-black text-brand-accent uppercase tracking-widest mb-3 block">System Override</span>
+                <span className="text-[10px] font-mono font-black text-brand-accent uppercase tracking-widest mb-3 block">Protocolo de Cadastro</span>
                 <h2 className="text-3xl font-display font-black text-brand-main italic uppercase">{form.id ? 'Editar' : 'Novo'} Cliente<span className="text-brand-accent">.</span></h2>
               </div>
               <button onClick={() => setModalOpen(false)} className="w-12 h-12 rounded-full flex items-center justify-center text-brand-muted hover:text-brand-main transition-all hover:rotate-90" style={{ background: 'var(--input-bg)' }}>

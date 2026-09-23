@@ -380,7 +380,7 @@ export default function BookingPage({ params }: PageProps) {
             </h1>
             <div className="flex items-center justify-center gap-2 mt-3">
               <span className="w-2 h-2 bg-brand-success rounded-full animate-pulse shadow-[0_0_10px_#10B981]" />
-              <span className="text-[11px] text-brand-muted font-black uppercase tracking-[0.2em]">Booking System Active</span>
+              <span className="text-[11px] text-brand-muted font-black uppercase tracking-[0.2em]">Agendamento Online Ativo</span>
             </div>
           </div>
         </div>

@@ -188,21 +188,21 @@ export default function DashboardPage() {
         <div className="p-6 md:p-8 lg:p-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4" style={{ borderBottom: '1px solid var(--card-border)', background: 'var(--input-bg)' }}>
           <div>
             <h2 className="text-3xl font-display font-black text-brand-main uppercase tracking-tight italic">Elite Agenda<span className="text-brand-accent">.</span></h2>
-            <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest mt-1">Today's Protocol Selection</p>
+            <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest mt-1">Seleção de Protocolo de Hoje</p>
           </div>
           <button onClick={() => router.push('/appointments')} className="px-6 py-3 rounded-2xl text-[11px] font-mono uppercase tracking-widest text-brand-accent transition-all hover:scale-105 active:scale-95" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
-            Expand View
+            Ver Tudo
           </button>
         </div>
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr style={{ background: 'var(--input-bg)' }}>
-                <th className="px-4 sm:px-12 py-4 sm:py-6 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-muted">Sequence</th>
-                <th className="px-4 sm:px-8 py-4 sm:py-6 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-muted">Client Profile</th>
-                <th className="px-4 sm:px-8 py-4 sm:py-6 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-muted hidden sm:table-cell">Elite Service</th>
-                <th className="px-4 sm:px-8 py-4 sm:py-6 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-muted">Status Logic</th>
-                <th className="px-4 sm:px-12 py-4 sm:py-6 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-muted text-right">Access</th>
+                <th className="px-4 sm:px-12 py-4 sm:py-6 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-muted">Horário</th>
+                <th className="px-4 sm:px-8 py-4 sm:py-6 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-muted">Cliente</th>
+                <th className="px-4 sm:px-8 py-4 sm:py-6 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-muted hidden sm:table-cell">Serviço</th>
+                <th className="px-4 sm:px-8 py-4 sm:py-6 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-muted">Status</th>
+                <th className="px-4 sm:px-12 py-4 sm:py-6 text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-brand-muted text-right">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y" style={{ borderColor: 'var(--card-border)' }}>
@@ -254,11 +254,11 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center mb-12">
             <div>
               <h3 className="text-2xl font-display font-bold text-brand-main mb-1">Performance Semanal</h3>
-              <p className="text-brand-muted text-[10px] font-mono uppercase tracking-widest">Revenue Velocity • Q1 2026</p>
+              <p className="text-brand-muted text-[10px] font-mono uppercase tracking-widest">Ritmo de Faturamento • Q1 2026</p>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 rounded-xl border" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
               <span className="w-2 h-2 bg-brand-accent rounded-full shadow-[0_0_10px_#0066FF]"></span>
-              <span className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Live Flow</span>
+              <span className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Ao Vivo</span>
             </div>
           </div>
           <div className="h-[350px] w-full mt-6">
@@ -292,8 +292,8 @@ export default function DashboardPage() {
               <Sparkles size={24} />
             </div>
             <div>
-              <h3 className="text-2xl font-display font-bold text-brand-main">AI Engine</h3>
-              <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Intelligent Insights</p>
+              <h3 className="text-2xl font-display font-bold text-brand-main">Motor de IA</h3>
+              <p className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Insights Inteligentes</p>
             </div>
           </div>
           <div className="space-y-6 flex-1 overflow-y-auto custom-scrollbar pr-2">
@@ -310,7 +310,7 @@ export default function DashboardPage() {
             )}
           </div>
           <ShimmerButton onClick={() => router.push('/finance')} className="w-full mt-8 py-4 text-[11px] font-mono uppercase tracking-[0.2em] shadow-[0_15px_35px_rgba(0,112,255,0.2)]">
-            Full Analytics →
+            Análise Completa →
           </ShimmerButton>
         </div>
       </div>}
