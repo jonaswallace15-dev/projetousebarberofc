@@ -4,7 +4,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { SessionProvider } from "next-auth/react";
 import { UIProvider } from "@/components/UIProvider";
 export const metadata: Metadata = {
-  title: "Usebarber Pro Suite",
+  title: "UseBarber",
   description: "Software #1 para gestão de barbearias",
 };
 
