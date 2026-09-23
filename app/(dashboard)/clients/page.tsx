@@ -6,10 +6,10 @@ import { ShimmerButton } from '@/components/ui/shimmer-button';
 import { useAuth } from '@/components/AuthProvider';
 import { useUI } from '@/components/UIProvider';
 import { supabaseService } from '@/services/supabaseService';
-import { isValidEmail } from '@/lib/validators';
+import { isValidEmail, maskCPF } from '@/lib/validators';
 import type { Client } from '@/types';
 
-const emptyForm = { id: '', name: '', phone: '', email: '', instagram: '', birthDate: '', address: '', notes: '' };
+const emptyForm = { id: '', name: '', phone: '', email: '', instagram: '', birthDate: '', cpf_cnpj: '', address: '', notes: '' };
 
 export default function ClientsPage() {
   const { user } = useAuth();
@@ -32,7 +32,17 @@ export default function ClientsPage() {
 
   const openNew = () => { setForm({ ...emptyForm }); setModalOpen(true); };
   const openEdit = (c: Client) => {
-    setForm({ id: c.id, name: c.name, phone: c.phone, email: c.email || '', instagram: c.instagram || '', birthDate: c.birthDate || '', address: c.address || '', notes: (c as any).notes || '' });
+    setForm({
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email || '',
+      instagram: c.instagram || '',
+      birthDate: c.birthDate || '',
+      cpf_cnpj: c.cpf_cnpj || '',
+      address: c.address || '',
+      notes: c.notes || '',
+    });
     setModalOpen(true);
   };
 
@@ -193,9 +203,23 @@ export default function ClientsPage() {
                   <input value={form.instagram} onChange={e => setForm({...form, instagram: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} placeholder="@usuario" />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Data de Nascimento</label>
+                  <input type="date" value={form.birthDate} onChange={e => setForm({...form, birthDate: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">CPF / CNPJ</label>
+                  <input value={form.cpf_cnpj} onChange={e => setForm({...form, cpf_cnpj: maskCPF(e.target.value)})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} placeholder="000.000.000-00" />
+                </div>
+              </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Data de Nascimento</label>
-                <input type="date" value={form.birthDate} onChange={e => setForm({...form, birthDate: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} />
+                <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Endereço</label>
+                <input value={form.address} onChange={e => setForm({...form, address: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} placeholder="Rua, número, bairro" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-mono font-black text-brand-muted uppercase tracking-widest">Observações</label>
+                <textarea rows={3} value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} className="w-full border rounded-2xl px-5 py-4 outline-none focus:border-brand-accent transition-all resize-none" style={{ background: 'var(--input-bg)', borderColor: 'var(--card-border)', color: 'var(--text-main)' }} placeholder="Preferências, alergias, observações gerais..." />
               </div>
               <ShimmerButton type="submit" disabled={saving} className="w-full py-4 text-[11px] font-mono uppercase tracking-widest">
                 {saving ? 'SALVANDO...' : 'SALVAR CLIENTE'}

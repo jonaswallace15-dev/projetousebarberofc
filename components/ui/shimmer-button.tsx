@@ -53,7 +53,7 @@ const ShimmerButton = React.forwardRef<HTMLButtonElement, ShimmerButtonProps>(
           </div>
         </div>
 
-        <span className="relative z-10 font-bold">{children}</span>
+        <span className="relative z-10 inline-flex items-center justify-center gap-2 font-bold">{children}</span>
 
         <div
           className={cn(

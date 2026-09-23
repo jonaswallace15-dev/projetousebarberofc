@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Scissors } from 'lucide-react';
 import { MENU_ITEMS, ADMIN_MENU_ITEMS } from '@/constants';
 
 // IDs que já aparecem no bottom nav do mobile
@@ -60,9 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, userRole, hid
         {/* LOGO */}
         <div className={`p-4 flex items-center gap-3 group cursor-pointer overflow-hidden ${collapsed ? 'lg:justify-center lg:px-0' : ''}`} style={{ minHeight: '72px' }}>
           <div className="w-10 h-10 flex-shrink-0 bg-brand-accent rounded-xl flex items-center justify-center text-white shadow-[0_0_20px_rgba(0,112,255,0.4)] group-hover:rotate-12 transition-transform duration-500">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-              <path d="M6 3h12M6 8h12M6 13l5.5 5.5M6 13l-4 6h14l-4-6"/>
-            </svg>
+            <Scissors size={20} strokeWidth={2.25} />
           </div>
           <div className={`flex flex-col transition-all duration-300 overflow-hidden ${collapsed ? 'lg:hidden' : ''}`}>
             <span className="font-display font-black text-xl tracking-tighter text-brand-main uppercase leading-none whitespace-nowrap">
