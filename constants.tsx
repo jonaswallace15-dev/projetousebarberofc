@@ -8,7 +8,7 @@ export const MENU_ITEMS = [
   { id: 'services', label: 'Serviços', href: '/services', icon: <Scissors size={20} /> },
   { id: 'team', label: 'Equipe', href: '/team', icon: <Users size={20} /> },
   { id: 'finance', label: 'Financeiro', href: '/finance', icon: <DollarSign size={20} /> },
-  { id: 'wallets', label: 'Carteiras', href: '/wallets', icon: <DollarSign size={20} /> },
+  { id: 'wallets', label: 'Carteiras', href: '/wallets', icon: <Wallet size={20} /> },
   { id: 'subscriptions', label: 'Assinaturas', href: '/subscriptions', icon: <Repeat size={20} /> },
   { id: 'settings', label: 'Configurações', href: '/settings', icon: <Settings size={20} /> },
 ];
