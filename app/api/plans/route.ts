@@ -50,7 +50,9 @@ export async function POST(request: NextRequest) {
 
     let plan: any;
     if (id) {
-      plan = await prisma.subscriptionPlan.update({ where: { id }, data: data as any });
+      const updated = await prisma.subscriptionPlan.updateMany({ where: { id, userId: session.user.id }, data: data as any });
+      if (updated.count === 0) return NextResponse.json({ error: 'Plano não encontrado' }, { status: 404 });
+      plan = await prisma.subscriptionPlan.findUniqueOrThrow({ where: { id } });
     } else {
       plan = await prisma.subscriptionPlan.create({ data: data as any });
     }

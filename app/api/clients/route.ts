@@ -68,10 +68,9 @@ export async function POST(request: NextRequest) {
 
     let client;
     if (id) {
-      client = await prisma.client.update({
-        where: { id },
-        data,
-      });
+      const updated = await prisma.client.updateMany({ where: { id, userId: session.user.id }, data });
+      if (updated.count === 0) return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
+      client = await prisma.client.findUniqueOrThrow({ where: { id } });
     } else {
       client = await prisma.client.create({ data });
     }

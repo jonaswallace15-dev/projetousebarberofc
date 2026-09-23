@@ -286,8 +286,6 @@ export default function SubscriptionsPage() {
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
                                 action: 'cancel-subscription',
-                                pagarmeSubscriptionId: sub.pagarmeSubscriptionId || null,
-                                asaasSubscriptionId: sub.asaasSubscriptionId || null,
                                 clientSubscriptionId: sub.id,
                               }),
                             });

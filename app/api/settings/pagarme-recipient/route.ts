@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { createRecipient, getRecipient } from '@/lib/pagarme';
+import { createRecipient, getRecipient, sanitizeGatewayErrorMessage } from '@/lib/pagarme';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Cadastro bancário/KYC da barbearia no Pagar.me (Recipient) — necessário pra
@@ -94,8 +94,8 @@ export async function POST(request: NextRequest) {
     } catch (err: any) {
       const isMarketplaceDisabled = /company/i.test(err.message || '');
       const friendlyError = isMarketplaceDisabled
-        ? 'A Stone ainda não liberou o Marketplace (recebedores) pra essa conta. Confira "Contratos" no painel ou fale com o suporte da Stone.'
-        : (err.message || 'Erro ao cadastrar recebedor');
+        ? 'Seu cadastro bancário ainda não pode ser processado. Entre em contato com o suporte para liberar essa função.'
+        : sanitizeGatewayErrorMessage(err.message) || 'Erro ao cadastrar recebedor';
 
       const saved = existing
         ? await prisma.pagarmeRecipient.update({ where: { id: existing.id }, data: { status: 'error', lastError: friendlyError } })
@@ -132,6 +132,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ recipient: { status: saved.status, holderType: saved.holderType, document: saved.document, legalName: saved.legalName } });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: sanitizeGatewayErrorMessage(err.message) }, { status: 500 });
   }
 }

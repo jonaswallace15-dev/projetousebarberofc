@@ -78,7 +78,9 @@ export async function POST(request: NextRequest) {
 
     let barber;
     if (id) {
-      barber = await prisma.barber.update({ where: { id }, data });
+      const updated = await prisma.barber.updateMany({ where: { id, userId: session.user.id }, data });
+      if (updated.count === 0) return NextResponse.json({ error: 'Barbeiro não encontrado' }, { status: 404 });
+      barber = await prisma.barber.findUniqueOrThrow({ where: { id } });
     } else {
       barber = await prisma.barber.create({ data });
     }

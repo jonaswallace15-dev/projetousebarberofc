@@ -157,7 +157,7 @@ export default function WalletsPage() {
         setRecipient(prev => ({ ...(prev || { status: 'error' }), status: data.recipient?.status || 'error', lastError: data.error }));
         return;
       }
-      toast('Cadastro enviado! Assim que a Stone aprovar, você já pode sacar.', 'success');
+      toast('Cadastro enviado! Assim que for aprovado, você já pode sacar.', 'success');
       setShowRecipientForm(false);
       loadData();
     } catch (err: any) {
@@ -252,7 +252,7 @@ export default function WalletsPage() {
               class={`text-xl shrink-0 mt-0.5 ${recipient.status === 'active' ? 'text-brand-success' : recipient.status === 'error' ? 'text-rose-400' : 'text-amber-400'}`} />
             <div>
               <p className={`text-[11px] font-mono font-black uppercase tracking-widest ${recipient.status === 'active' ? 'text-brand-success' : recipient.status === 'error' ? 'text-rose-400' : 'text-amber-400'}`}>
-                {recipient.status === 'active' ? 'Aprovado — pode sacar' : recipient.status === 'error' ? 'Erro no cadastro' : 'Em análise pela Stone'}
+                {recipient.status === 'active' ? 'Aprovado — pode sacar' : recipient.status === 'error' ? 'Erro no cadastro' : 'Em análise'}
               </p>
               {recipient.lastError && <p className="text-[11px] font-mono text-brand-muted mt-1 leading-relaxed">{recipient.lastError}</p>}
             </div>
@@ -587,7 +587,7 @@ export default function WalletsPage() {
                 <div className="p-5 rounded-2xl space-y-3" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}>
                   <p className="text-[11px] font-mono text-amber-400 leading-relaxed">
                     {recipient?.status === 'error' || recipient?.status === 'pending'
-                      ? 'Seu cadastro bancário ainda está em análise pela Stone. Assim que for aprovado, você poderá sacar por aqui.'
+                      ? 'Seu cadastro bancário ainda está em análise. Assim que for aprovado, você poderá sacar por aqui.'
                       : 'Cadastre seus dados bancários antes de solicitar saque.'}
                   </p>
                   <button onClick={() => { setWithdrawModal(null); setShowRecipientForm(true); }} className="inline-block text-[10px] font-mono font-black text-brand-accent uppercase tracking-widest underline underline-offset-4">

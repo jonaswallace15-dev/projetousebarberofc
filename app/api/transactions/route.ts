@@ -95,7 +95,9 @@ export async function POST(request: NextRequest) {
 
     let transaction;
     if (id) {
-      transaction = await prisma.financeTransaction.update({ where: { id }, data });
+      const updated = await prisma.financeTransaction.updateMany({ where: { id, userId: session.user.id }, data });
+      if (updated.count === 0) return NextResponse.json({ error: 'Transação não encontrada' }, { status: 404 });
+      transaction = await prisma.financeTransaction.findUniqueOrThrow({ where: { id } });
     } else {
       transaction = await prisma.financeTransaction.create({ data });
     }

@@ -13,6 +13,16 @@ export function isPagarmeConfigured() {
   return !!PAGARME_SECRET_KEY;
 }
 
+// Mensagens de erro internas citam o gateway pra facilitar debug nos logs do servidor,
+// mas nunca devem chegar assim no frontend/cliente final — aplicar sempre que um
+// err.message de uma chamada ao Pagar.me for devolvido numa resposta de API pública.
+export function sanitizeGatewayErrorMessage(message: string | undefined | null): string {
+  if (!message) return 'Erro ao processar pagamento. Tente novamente.';
+  return message
+    .replace(/pagar\s*\.?\s*me/gi, 'gateway de pagamento')
+    .replace(/\bstone\b/gi, 'gateway de pagamento');
+}
+
 export function pagarmeDebugInfo() {
   return {
     url: PAGARME_URL,
@@ -377,10 +387,9 @@ export async function createTransfer(params: { recipientId: string; amountCents:
 }
 
 /**
- * Verificação best-effort da assinatura do webhook.
- * TODO(pagarme-sandbox): confirmar o nome exato do header de assinatura configurado
- * no dashboard do Pagar.me ao cadastrar o endpoint de webhook. Sem PAGARME_WEBHOOK_SECRET
- * configurado, não valida nada (mesmo comportamento do webhook LorexPay hoje).
+ * Verificação da assinatura do webhook. Sem PAGARME_WEBHOOK_SECRET configurado
+ * (pegar no dashboard do Pagar.me ao cadastrar o endpoint de webhook), fica
+ * permissivo — não valida nada.
  */
 export function verifyPagarmeWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
   const secret = process.env.PAGARME_WEBHOOK_SECRET;

@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Assinantes legados que ainda renovam pelo Asaas (ver [[project_pagarme]]) — a Asaas
+// reenvia de volta, em todo webhook, o token configurado em "Autenticação" no painel
+// (header asaas-access-token). Sem ASAAS_WEBHOOK_TOKEN configurado, fica permissivo
+// (mesmo padrão de verifyPagarmeWebhookSignature) até o valor ser definido no .env.
+function isValidAsaasWebhook(request: NextRequest): boolean {
+  const token = process.env.ASAAS_WEBHOOK_TOKEN;
+  if (!token) return true;
+  return request.headers.get('asaas-access-token') === token;
+}
+
 export async function POST(request: NextRequest) {
+  if (!isValidAsaasWebhook(request)) {
+    console.error('[asaas-webhook] token inválido');
+    return NextResponse.json({ received: false }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { event, payment } = body;

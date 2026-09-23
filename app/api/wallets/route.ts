@@ -84,6 +84,13 @@ export async function POST(request: NextRequest) {
       const amount = Number(transaction.amount);
       const txType = transaction.type;
 
+      // A carteira só pode ser mexida por quem é dono dela (barbearia) — nunca
+      // confiar no walletId vindo do cliente sem confirmar posse no banco.
+      const wallet = await prisma.wallet.findUnique({ where: { id: walletId } });
+      if (!wallet || wallet.userId !== session.user.id) {
+        return NextResponse.json({ error: 'Carteira não encontrada' }, { status: 404 });
+      }
+
       const result = await prisma.$transaction(async (tx) => {
         if (txType === 'credit') {
           await tx.wallet.update({

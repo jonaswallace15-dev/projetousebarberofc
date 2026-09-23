@@ -46,7 +46,9 @@ export async function POST(request: NextRequest) {
 
     let product;
     if (id) {
-      product = await prisma.product.update({ where: { id }, data });
+      const updated = await prisma.product.updateMany({ where: { id, userId: session.user.id }, data });
+      if (updated.count === 0) return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 });
+      product = await prisma.product.findUniqueOrThrow({ where: { id } });
     } else {
       product = await prisma.product.create({ data });
     }

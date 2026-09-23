@@ -291,7 +291,7 @@ export default function PlanCheckoutPage({ params }: PageProps) {
             </div>
           </div>
           <p className="flex items-center gap-2 text-[10px] font-mono text-brand-muted/70 pt-1">
-            <Lock size={12} /> Pagamento processado com segurança pelo Pagar.me (Stone)
+            <Lock size={12} /> Pagamento processado com segurança e criptografia de ponta a ponta
           </p>
 
           <button

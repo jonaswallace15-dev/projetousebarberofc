@@ -118,7 +118,25 @@ export async function POST(request: NextRequest) {
 
     let appointment;
     if (id) {
-      appointment = await prisma.appointment.update({ where: { id }, data });
+      if (session?.user?.id) {
+        // Autenticado (painel): só pode editar agendamentos da própria barbearia.
+        const updated = await prisma.appointment.updateMany({
+          where: { id, userId: session.user.id },
+          data,
+        });
+        if (updated.count === 0) return NextResponse.json({ error: 'Agendamento não encontrado' }, { status: 404 });
+      } else {
+        // Anônimo (confirmação de PIX na página pública de agendamento): não pode alterar
+        // preço, serviço, barbeiro ou dono do agendamento — só marca como Confirmado, e
+        // só se ainda estava Pendente. Preço/comissão usados abaixo continuam vindo do
+        // valor já gravado no banco na criação, nunca do que o cliente mandar aqui.
+        const updated = await prisma.appointment.updateMany({
+          where: { id, userId, status: 'Pendente' },
+          data: { status: 'Confirmado' },
+        });
+        if (updated.count === 0) return NextResponse.json({ error: 'Agendamento não encontrado' }, { status: 404 });
+      }
+      appointment = await prisma.appointment.findUniqueOrThrow({ where: { id } });
     } else {
       appointment = await prisma.appointment.create({ data });
     }

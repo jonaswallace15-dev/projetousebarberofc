@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createPixOrder, isPagarmeConfigured, pagarmeDebugInfo } from '@/lib/pagarme';
+import { createPixOrder, isPagarmeConfigured, pagarmeDebugInfo, sanitizeGatewayErrorMessage } from '@/lib/pagarme';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       });
     } catch (err: any) {
       console.error('[PIX CREATE ERROR]', err.message);
-      return NextResponse.json({ error: err.message }, { status: 500 });
+      return NextResponse.json({ error: sanitizeGatewayErrorMessage(err.message) }, { status: 500 });
     }
   }
 
