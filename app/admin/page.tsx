@@ -62,7 +62,7 @@ export default function AdminPage() {
     }
   }, [userRole, loading, router]);
 
-  const handleWithdrawal = async (id: string, action: 'approve' | 'reject' | 'retry-pix') => {
+  const handleWithdrawal = async (id: string, action: 'approve' | 'reject' | 'retry-transfer') => {
     setProcessing(id);
     try {
       const res = await fetch('/api/admin/withdrawals', {
@@ -747,7 +747,7 @@ export default function AdminPage() {
                 <thead>
                   <tr className="text-[10px] font-mono text-brand-muted uppercase tracking-widest font-black" style={{ background: 'var(--input-bg)', borderBottom: '1px solid var(--card-border)' }}>
                     <th className="px-8 py-5 text-left">Usuário</th>
-                    <th className="px-8 py-5 text-left hidden md:table-cell">Chave PIX</th>
+                    <th className="px-8 py-5 text-left hidden md:table-cell">Conta bancária</th>
                     <th className="px-8 py-5 text-left hidden md:table-cell">Data</th>
                     <th className="px-8 py-5 text-center">Status</th>
                     <th className="px-8 py-5 text-right">Valor</th>
@@ -795,11 +795,11 @@ export default function AdminPage() {
                         ) : w.status === 'Aprovado' ? (
                           <div className="flex flex-col items-center gap-1.5">
                             <button
-                              onClick={() => handleWithdrawal(w.id, 'retry-pix')}
+                              onClick={() => handleWithdrawal(w.id, 'retry-transfer')}
                               disabled={processing === w.id}
                               className="px-3 py-1.5 rounded-xl text-[9px] font-mono font-black uppercase tracking-widest bg-brand-accent/10 text-brand-accent border border-brand-accent/20 hover:bg-brand-accent/20 transition-all disabled:opacity-50 whitespace-nowrap"
                             >
-                              {processing === w.id ? '...' : 'Retentar PIX'}
+                              {processing === w.id ? '...' : 'Retentar'}
                             </button>
                             <button
                               onClick={() => handleWithdrawal(w.id, 'reject')}

@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createPixPayment, isLorexpayConfigured, lorexpayDebugInfo } from '@/lib/lorexpay';
-
-function appBaseUrl() {
-  return (process.env.LOREXPAY_WEBHOOK_BASE_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
-}
+import { createPixOrder, isPagarmeConfigured, pagarmeDebugInfo } from '@/lib/pagarme';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -11,8 +7,8 @@ export async function POST(request: NextRequest) {
 
   // ─── Criar QR Code PIX ───────────────────────────────────────────────────
   if (action === 'create') {
-    if (!isLorexpayConfigured()) {
-      console.error('[PIX] LorexPay não configurado:', lorexpayDebugInfo());
+    if (!isPagarmeConfigured()) {
+      console.error('[PIX] Pagar.me não configurado:', pagarmeDebugInfo());
       return NextResponse.json({ error: 'Gateway de pagamento não configurado' }, { status: 500 });
     }
 
@@ -38,34 +34,34 @@ export async function POST(request: NextRequest) {
 
       const totalAmount = svc.price + productPrice;
       const cpfDigits = data.taxId.replace(/\D/g, '');
-      const base = appBaseUrl();
 
-      console.log('[PIX] Criando cobrança | serviço:', svc.name, '| valor:', totalAmount, '| webhookBase:', base);
+      // Split pro recipient da barbearia quando o cadastro bancário já estiver ativo
+      // (Fase 3) — sem recipient ativo, cai no saldo pooled da conta principal.
+      const recipient = await prisma.pagarmeRecipient.findFirst({ where: { userId: data.userId, status: 'active' } });
 
-      const webhookUrl = data.appointmentId
-        ? `${base}/api/payments/lorexpay/webhook?ref=APPT|${data.appointmentId}`
-        : undefined;
+      console.log('[PIX] Criando cobrança | serviço:', svc.name, '| valor:', totalAmount);
 
-      const pix = await createPixPayment({
+      const pix = await createPixOrder({
         valueCents: Math.round(totalAmount * 100),
+        description: `${svc.name} — ${data.name}`,
         customer: {
           name: data.name,
           email: data.email || `${(data.phone || '').replace(/\D/g, '')}@semmail.com`,
           phone: (data.phone || '').replace(/\D/g, '') || undefined,
           cpf: cpfDigits || undefined,
         },
-        webhookUrl,
-        metadata: data.appointmentId ? { referenceId: data.appointmentId } : undefined,
+        metadata: data.appointmentId ? { referenceId: `APPT|${data.appointmentId}` } : undefined,
+        splitRecipientId: recipient?.pagarmeRecipientId,
       });
 
       console.log('[PIX] Cobrança criada | orderId:', pix.orderId, '| status:', pix.status);
 
       return NextResponse.json({
         id: data.appointmentId || pix.orderId,
-        lorexpayOrderId: pix.orderId,
+        pagarmeOrderId: pix.orderId,
         status: pix.status,
-        brCode: pix.pix?.brCode || null,
-        pixQrCode: pix.pix?.qrCodeImage || null,
+        brCode: pix.pix?.qrCode || null,
+        pixQrCode: pix.pix?.qrCodeUrl || null,
       });
     } catch (err: any) {
       console.error('[PIX CREATE ERROR]', err.message);

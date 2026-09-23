@@ -27,6 +27,7 @@ export async function GET() {
       planName: s.plan.name,
       planPrice: s.plan.price,
       asaasSubscriptionId: (s.data as any)?.asaasSubscriptionId || null,
+      pagarmeSubscriptionId: (s.data as any)?.pagarmeSubscriptionId || null,
       subscribedAt: (s.data as any)?.activatedAt || (s.data as any)?.subscribedAt || (s.data as any)?.simulatedAt || null,
     })));
   } catch (err: any) {

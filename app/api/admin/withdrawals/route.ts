@@ -1,62 +1,32 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { createTransfer } from '@/lib/pagarme';
 import { NextRequest, NextResponse } from 'next/server';
 
-const ASAAS_URL = process.env.ASAAS_URL || 'https://api.asaas.com/v3';
-const ASAAS_API_KEY = process.env.ASAAS_API_KEY
-  ? (process.env.ASAAS_API_KEY.startsWith('$') ? process.env.ASAAS_API_KEY : `$${process.env.ASAAS_API_KEY}`)
-  : undefined;
+// ── Código Asaas mantido pra referência — saques antigos (anteriores à Fase 3 da
+// migração Pagar.me) foram pagos manualmente pelo admin direto no painel do Asaas,
+// fora do app. Não usar em saques novos, todos passam a sair via Transfers do
+// recipient da barbearia no Pagar.me (ver sendTransferViaPagarme abaixo).
+//
+// const ASAAS_URL = process.env.ASAAS_URL || 'https://api.asaas.com/v3';
+// const ASAAS_API_KEY = process.env.ASAAS_API_KEY
+//   ? (process.env.ASAAS_API_KEY.startsWith('$') ? process.env.ASAAS_API_KEY : `$${process.env.ASAAS_API_KEY}`)
+//   : undefined;
+//
+// function detectPixKeyType(key: string): string { ... }
+// async function sendPixViaAsaas(pixKey, amount, description) { ... }
 
-function detectPixKeyType(key: string): string {
-  const digits = key.replace(/\D/g, '');
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key)) return 'EMAIL';
-  if (digits.length === 11 && !key.includes('-') === false || (digits.length === 11 && /^\d+$/.test(digits))) return 'CPF';
-  if (digits.length === 14) return 'CNPJ';
-  if (key.startsWith('+') || (digits.length >= 10 && digits.length <= 11)) return 'PHONE';
-  return 'EVP'; // chave aleatória
-}
-
-async function asaasJsonSafe(res: Response): Promise<any> {
-  const text = await res.text();
-  try { return JSON.parse(text); } catch { return { _raw: text.slice(0, 300), errors: [{ description: `Resposta inválida do Asaas (status ${res.status})` }] }; }
-}
-
-
-async function sendPixViaAsaas(pixKey: string, amount: number, description: string): Promise<{ success: boolean; transferId?: string; error?: string }> {
-  if (!ASAAS_API_KEY) return { success: false, error: 'Asaas API key não configurada' };
-
-  const cleanKey = pixKey.trim();
-  if (!cleanKey || cleanKey.toLowerCase() === 'a definir pelo admin') {
-    return { success: false, error: 'Chave PIX não definida pelo barbeiro' };
+async function sendTransferViaPagarme(userId: string, amount: number): Promise<{ success: boolean; transferId?: string; error?: string }> {
+  const recipient = await prisma.pagarmeRecipient.findUnique({ where: { userId } });
+  if (!recipient?.pagarmeRecipientId || recipient.status !== 'active') {
+    return { success: false, error: 'Barbearia sem recipient ativo no Pagar.me — cadastro bancário incompleto.' };
   }
 
-  const pixAddressKeyType = detectPixKeyType(cleanKey);
-  const pixAddressKey = pixAddressKeyType === 'CPF' || pixAddressKeyType === 'CNPJ' || pixAddressKeyType === 'PHONE'
-    ? cleanKey.replace(/\D/g, '')
-    : cleanKey;
-
   try {
-    const res = await fetch(`${ASAAS_URL}/transfers`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'access_token': ASAAS_API_KEY,
-      },
-      body: JSON.stringify({ value: amount, pixAddressKey, pixAddressKeyType, description }),
-      signal: AbortSignal.timeout(8000),
-    });
-
-    const data = await asaasJsonSafe(res);
-    console.log('[Asaas Transfer] status:', res.status, 'body:', JSON.stringify(data));
-
-    if (!res.ok || data.errors?.length) {
-      const msg = data.errors?.[0]?.description || data.error || `Erro Asaas status ${res.status}`;
-      return { success: false, error: msg };
-    }
-
-    return { success: true, transferId: data.id };
+    const transfer = await createTransfer({ recipientId: recipient.pagarmeRecipientId, amountCents: Math.round(amount * 100) });
+    return { success: true, transferId: transfer.id };
   } catch (e: any) {
-    return { success: false, error: e.message || 'Timeout ou erro de conexão com Asaas' };
+    return { success: false, error: e.message || 'Erro ao criar transferência no Pagar.me' };
   }
 }
 
@@ -91,7 +61,7 @@ export async function POST(request: NextRequest) {
   try {
     const { id, action, notes } = await request.json();
 
-    if (!['approve', 'reject', 'retry-pix'].includes(action)) {
+    if (!['approve', 'reject', 'retry-transfer'].includes(action)) {
       return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }
 
@@ -100,39 +70,41 @@ export async function POST(request: NextRequest) {
       if (!withdrawal) return NextResponse.json({ error: 'Saque não encontrado' }, { status: 404 });
       if (withdrawal.status !== 'Pendente') return NextResponse.json({ error: 'Saque já processado' }, { status: 400 });
 
-      // Marca como aprovado e tenta PIX sincronamente
+      // Marca como aprovado e tenta a transferência sincronamente
       await prisma.withdrawal.update({
         where: { id },
-        data: { status: 'Aprovado', processedAt: new Date(), notes: 'Aprovado — enviando PIX...' },
+        data: { status: 'Aprovado', processedAt: new Date(), notes: 'Aprovado — enviando transferência...' },
       });
 
-      const transfer = await sendPixViaAsaas(withdrawal.pixKey, withdrawal.amount, `Saque UseBarber — ID ${id}`);
+      const transfer = await sendTransferViaPagarme(withdrawal.userId, withdrawal.amount);
 
       const updated = await prisma.withdrawal.update({
         where: { id },
         data: {
+          pagarmeTransferId: transfer.transferId || null,
           notes: transfer.success
-            ? `PIX enviado via Asaas — ID: ${transfer.transferId} | R$${withdrawal.amount.toFixed(2)}`
-            : `Erro ao enviar PIX: ${transfer.error} — clique em Retentar PIX ou envie manualmente.`,
+            ? `Transferência enviada via Pagar.me — ID: ${transfer.transferId} | R$${withdrawal.amount.toFixed(2)}`
+            : `Erro ao enviar transferência: ${transfer.error} — clique em Retentar ou resolva o cadastro bancário da barbearia.`,
         },
       });
 
       return NextResponse.json(updated);
     }
 
-    if (action === 'retry-pix') {
+    if (action === 'retry-transfer') {
       const withdrawal = await prisma.withdrawal.findUnique({ where: { id } });
       if (!withdrawal) return NextResponse.json({ error: 'Saque não encontrado' }, { status: 404 });
       if (withdrawal.status !== 'Aprovado') return NextResponse.json({ error: 'Saque não está aprovado' }, { status: 400 });
 
-      const transfer = await sendPixViaAsaas(withdrawal.pixKey, withdrawal.amount, `Saque UseBarber — ID ${id}`);
+      const transfer = await sendTransferViaPagarme(withdrawal.userId, withdrawal.amount);
 
       const updated = await prisma.withdrawal.update({
         where: { id },
         data: {
+          pagarmeTransferId: transfer.transferId || withdrawal.pagarmeTransferId,
           notes: transfer.success
-            ? `PIX enviado via Asaas — ID: ${transfer.transferId} | R$${withdrawal.amount.toFixed(2)}`
-            : `Erro ao enviar PIX: ${transfer.error} — clique em Retentar PIX ou envie manualmente.`,
+            ? `Transferência enviada via Pagar.me — ID: ${transfer.transferId} | R$${withdrawal.amount.toFixed(2)}`
+            : `Erro ao enviar transferência: ${transfer.error} — clique em Retentar ou resolva o cadastro bancário da barbearia.`,
         },
       });
 
@@ -148,7 +120,7 @@ export async function POST(request: NextRequest) {
     if (toReject.status === 'Rejeitado') return NextResponse.json({ error: 'Saque já rejeitado' }, { status: 400 });
 
     const updated = await prisma.$transaction(async (tx) => {
-      // Só estorna se ainda não tinha sido aprovado (Pendente) ou se aprovado mas PIX não enviado
+      // Só estorna se ainda não tinha sido aprovado (Pendente) ou se aprovado mas a transferência não saiu
       if (toReject.status === 'Pendente' || toReject.status === 'Aprovado') {
         await tx.wallet.update({
           where: { id: toReject.walletId },

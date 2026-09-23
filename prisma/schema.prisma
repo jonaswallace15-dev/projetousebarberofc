@@ -26,6 +26,7 @@ model User {
   wallets             Wallet[]
   pushSubscriptions   PushSubscription[]
   clientSubscriptions ClientSubscription[]
+  pagarmeRecipient    PagarmeRecipient?
 
   @@map("users")
 }
@@ -235,16 +236,40 @@ model ClientSubscription {
   @@map("assinaturas_clientes")
 }
 
+// Recipient do Pagar.me (Stone) — 1 por barbearia (User dono). Precisa de KYC
+// aprovado pela Stone (Marketplace) antes do status virar "active" e a barbearia
+// poder receber split e sacar. Ver lib/pagarme.ts (createRecipient) e
+// app/api/settings/pagarme-recipient/route.ts.
+model PagarmeRecipient {
+  id                 String    @id @default(cuid())
+  userId             String    @unique @map("user_id")
+  pagarmeRecipientId String?   @unique @map("pagarme_recipient_id")
+  status             String    @default("pending") // pending | active | refused | created | registration_pending
+  holderType         String    @map("holder_type") // individual | company
+  document           String
+  legalName          String    @map("legal_name")
+  registrationData   Json      @map("registration_data") // register_information enviado à Stone (email, telefone, endereço, etc.)
+  bankAccount        Json      @map("bank_account") // default_bank_account (banco, agência, conta)
+  lastError          String?   @map("last_error")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("pagarme_recipients")
+}
+
 model Withdrawal {
-  id          String    @id @default(cuid())
-  walletId    String    @map("wallet_id")
-  userId      String    @map("user_id")
-  amount      Float
-  pixKey      String    @map("pix_key")
-  status      String    @default("Pendente")
-  notes       String?
-  processedAt DateTime? @map("processed_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id                String    @id @default(cuid())
+  walletId          String    @map("wallet_id")
+  userId            String    @map("user_id")
+  amount            Float
+  pixKey            String    @map("pix_key") // hoje guarda o resumo da conta bancária do recipient (ex: "Banco 341 · Ag 0001 · CC 12345-6"), não uma chave PIX avulsa — ver Fase 3 da migração Pagar.me
+  pagarmeTransferId String?   @map("pagarme_transfer_id")
+  status            String    @default("Pendente")
+  notes             String?
+  processedAt       DateTime? @map("processed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
 
   wallet Wallet @relation(fields: [walletId], references: [id])
 

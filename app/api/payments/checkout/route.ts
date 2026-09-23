@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createPixPayment } from '@/lib/lorexpay';
-
-function appBaseUrl() {
-  return (process.env.LOREXPAY_WEBHOOK_BASE_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
-}
+import { createPixOrder, createCardSubscription, cancelSubscription as cancelPagarmeSubscription } from '@/lib/pagarme';
 
 // ── Código Asaas mantido para uso futuro ──────────────────────────────────────
 // const ASAAS_URL = process.env.ASAAS_URL || 'https://api.asaas.com/v3';
@@ -121,8 +117,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ url: invoiceUrl });
     }
 
-    // ── Checkout PIX via LorexPay ─────────────────────────────────────────
-    if (action === 'create-lorexpay-checkout') {
+    // ── Checkout PIX via Pagar.me ──────────────────────────────────────────
+    if (action === 'create-pagarme-pix-checkout') {
       const { planId, clientName, clientEmail, clientPhone, clientCpf } = body;
       const cpfDigits = (clientCpf || '').replace(/\D/g, '');
 
@@ -136,18 +132,19 @@ export async function POST(request: NextRequest) {
       const phoneDigits = (clientPhone || '').replace(/\D/g, '');
       const email = clientEmail || `${phoneDigits || cpfDigits}@semmail.com`;
 
-      const webhookUrl = `${appBaseUrl()}/api/payments/lorexpay/webhook?ref=SUB|${plan.id}|${plan.userId}|${phoneDigits}|${cpfDigits}`;
+      const recipient = await prisma.pagarmeRecipient.findFirst({ where: { userId: plan.userId, status: 'active' } });
 
-      const pix = await createPixPayment({
+      const pix = await createPixOrder({
         valueCents: Math.round(plan.price * 100),
+        description: `Assinatura — ${plan.name}`,
         customer: {
           name: clientName,
           email,
           phone: phoneDigits || undefined,
           cpf: cpfDigits || undefined,
         },
-        webhookUrl,
-        metadata: { referenceId: `SUB|${plan.id}|${plan.userId}` },
+        metadata: { referenceId: `SUB|${plan.id}|${plan.userId}|${phoneDigits}|${cpfDigits}` },
+        splitRecipientId: recipient?.pagarmeRecipientId,
       });
 
       // Cria/atualiza cliente local e ClientSubscription pending_payment
@@ -193,7 +190,7 @@ export async function POST(request: NextRequest) {
               where: { id: sub.id },
               data: {
                 status: 'pending_payment',
-                data: { ...(sub.data as object), lorexpayOrderId: pix.orderId },
+                data: { ...(sub.data as object), pagarmeOrderId: pix.orderId },
               },
             });
           } else {
@@ -204,7 +201,7 @@ export async function POST(request: NextRequest) {
                 planId: plan.id,
                 status: 'pending_payment',
                 data: {
-                  lorexpayOrderId: pix.orderId,
+                  pagarmeOrderId: pix.orderId,
                   cpfCnpj: cpfDigits || null,
                   subscribedAt: new Date().toISOString(),
                 },
@@ -213,23 +210,119 @@ export async function POST(request: NextRequest) {
           }
           clientSubscriptionId = sub.id;
         }
-      } catch (e) { console.error('[lorexpay-checkout-upsert]', e); }
+      } catch (e) { console.error('[pagarme-checkout-upsert]', e); }
 
       return NextResponse.json({
-        lorexpayOrderId: pix.orderId,
-        brCode: pix.pix?.brCode || null,
-        qrCodeImage: pix.pix?.qrCodeImage || null,
+        pagarmeOrderId: pix.orderId,
+        brCode: pix.pix?.qrCode || null,
+        qrCodeImage: pix.pix?.qrCodeUrl || null,
         expiresAt: pix.pix?.expiresAt || null,
         clientSubscriptionId,
       });
     }
 
-    // ── Cancelar Assinatura ────────────────────────────────────────────────
-    // Asaas cancel mantido pois ainda armazena asaasSubscriptionId nos dados existentes
-    if (action === 'cancel-subscription') {
-      const { asaasSubscriptionId, clientSubscriptionId } = body;
+    // ── Checkout Cartão recorrente via Pagar.me (assinatura mensal real) ──
+    if (action === 'create-pagarme-card-subscription') {
+      const { planId, clientName, clientEmail, clientPhone, clientCpf, cardToken, card, billingDay } = body;
+      const cpfDigits = (clientCpf || '').replace(/\D/g, '');
+      const phoneDigits = (clientPhone || '').replace(/\D/g, '');
 
-      if (asaasSubscriptionId) {
+      if (!cardToken && !card) return NextResponse.json({ error: 'Dados do cartão ausentes' }, { status: 400 });
+      if (!clientCpf || cpfDigits.length !== 11) {
+        return NextResponse.json({ error: 'CPF inválido' }, { status: 400 });
+      }
+
+      const plan = await prisma.subscriptionPlan.findUnique({ where: { id: planId } });
+      if (!plan) return NextResponse.json({ error: 'Plano não encontrado' }, { status: 404 });
+
+      const email = clientEmail || `${phoneDigits || cpfDigits}@semmail.com`;
+      const recipient = await prisma.pagarmeRecipient.findFirst({ where: { userId: plan.userId, status: 'active' } });
+
+      const subscription = await createCardSubscription({
+        planPriceCents: Math.round(plan.price * 100),
+        planName: plan.name,
+        cardToken,
+        billingDay: billingDay ? Number(billingDay) : undefined,
+        card,
+        customer: { name: clientName, email, phone: phoneDigits || undefined, cpf: cpfDigits },
+        metadata: { referenceId: `SUB|${plan.id}|${plan.userId}|${phoneDigits}|${cpfDigits}` },
+        splitRecipientId: recipient?.pagarmeRecipientId,
+      });
+
+      // Cria/atualiza cliente local e ClientSubscription — cartão é síncrono, então já
+      // ativa direto (o webhook cuida das renovações dos ciclos seguintes)
+      let clientSubscriptionId: string | null = null;
+      try {
+        let client = phoneDigits
+          ? await prisma.client.findFirst({ where: { userId: plan.userId, phone: phoneDigits } })
+          : await prisma.client.findFirst({ where: { userId: plan.userId, cpfCnpj: { contains: cpfDigits } } });
+
+        if (client) {
+          const updateData: any = {};
+          if (!client.cpfCnpj && cpfDigits) updateData.cpfCnpj = cpfDigits;
+          if (clientName && client.name !== clientName) updateData.name = clientName;
+          if (clientEmail && !client.email) updateData.email = clientEmail;
+          if (Object.keys(updateData).length > 0) await prisma.client.update({ where: { id: client.id }, data: updateData });
+        } else {
+          client = await prisma.client.create({
+            data: {
+              userId: plan.userId,
+              name: clientName || '',
+              phone: phoneDigits || '',
+              email: clientEmail || null,
+              cpfCnpj: cpfDigits || null,
+              tag: 'Novo',
+              lastVisit: new Date().toISOString().slice(0, 10),
+              totalSpent: 0,
+              frequency: 0,
+            },
+          });
+        }
+
+        const subActive = subscription.status === 'active';
+        let sub = await prisma.clientSubscription.findFirst({
+          where: { userId: plan.userId, clientId: client.id, planId: plan.id },
+        });
+        const subData = {
+          pagarmeSubscriptionId: subscription.subscriptionId,
+          cpfCnpj: cpfDigits || null,
+          billingDay: billingDay ? Number(billingDay) : null,
+          ...(subActive ? { confirmedAt: new Date().toISOString() } : { subscribedAt: new Date().toISOString() }),
+        };
+        if (sub) {
+          sub = await prisma.clientSubscription.update({
+            where: { id: sub.id },
+            data: { status: subActive ? 'active' : 'pending_payment', data: { ...(sub.data as object), ...subData } },
+          });
+        } else {
+          sub = await prisma.clientSubscription.create({
+            data: { userId: plan.userId, clientId: client.id, planId: plan.id, status: subActive ? 'active' : 'pending_payment', data: subData },
+          });
+        }
+        clientSubscriptionId = sub.id;
+
+        if (subActive) {
+          await prisma.subscriptionPlan.update({ where: { id: plan.id }, data: { activeUsers: { increment: 1 } } });
+        }
+      } catch (e) { console.error('[pagarme-card-subscription-upsert]', e); }
+
+      return NextResponse.json({
+        pagarmeSubscriptionId: subscription.subscriptionId,
+        status: subscription.status,
+        clientSubscriptionId,
+      });
+    }
+
+    // ── Cancelar Assinatura ────────────────────────────────────────────────
+    // Asaas cancel mantido pois assinantes legados ainda armazenam asaasSubscriptionId
+    if (action === 'cancel-subscription') {
+      const { asaasSubscriptionId, pagarmeSubscriptionId, clientSubscriptionId } = body;
+
+      if (pagarmeSubscriptionId) {
+        try {
+          await cancelPagarmeSubscription(pagarmeSubscriptionId);
+        } catch (e) { console.error('[cancel-pagarme-subscription]', e); }
+      } else if (asaasSubscriptionId) {
         const ASAAS_URL = process.env.ASAAS_URL || 'https://api.asaas.com/v3';
         const ASAAS_KEY = process.env.ASAAS_API_KEY
           ? (process.env.ASAAS_API_KEY.startsWith('$') ? process.env.ASAAS_API_KEY : `$${process.env.ASAAS_API_KEY}`)

@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Users, Check, Link2, Zap, X as XIcon, ArrowRight, Loader2, Star, Wallet } from 'lucide-react';
+import { Plus, Edit2, Trash2, Users, Check, Star, Wallet } from 'lucide-react';
 import { supabaseService } from '@/services/supabaseService';
 import { useAuth } from '@/components/AuthProvider';
 import { useUI } from '@/components/UIProvider';
-import { isValidEmail, isValidCPF, maskCPF } from '@/lib/validators';
 import type { SubscriptionPlan } from '@/types';
 
 const emptyPlan: Partial<SubscriptionPlan> = {
@@ -18,7 +17,7 @@ const emptyPlan: Partial<SubscriptionPlan> = {
 
 export default function SubscriptionsPage() {
   const { user } = useAuth();
-  const { toast, confirm } = useUI();
+  const { confirm } = useUI();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -29,62 +28,11 @@ export default function SubscriptionsPage() {
   // Client subscriptions
   const [clientSubs, setClientSubs] = useState<any[]>([]);
 
-  // Charge modal
-  const [chargeModal, setChargeModal] = useState<SubscriptionPlan | null>(null);
-  const [chargeForm, setChargeForm] = useState({ name: '', phone: '', email: '', taxId: '', billingDay: '' });
-  const [charging, setCharging] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  const getPlanLink = (plan: SubscriptionPlan) => {
-    const base = typeof window !== 'undefined' ? `${window.location.origin}/plano/${plan.id}` : `/plano/${plan.id}`;
-    const dia = plan.billingDay ?? 10;
-    return `${base}?dia=${dia}`;
-  };
-
-  const handleCopyLink = (plan: SubscriptionPlan) => {
-    navigator.clipboard.writeText(getPlanLink(plan));
-    setCopiedId(plan.id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-
-  const handleCharge = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chargeModal) return;
-    if (chargeForm.email && !isValidEmail(chargeForm.email)) {
-      toast('E-mail inválido. Verifique o formato.', 'error');
-      return;
-    }
-    if (chargeForm.taxId && !isValidCPF(chargeForm.taxId)) {
-      toast('CPF inválido. Verifique os dígitos.', 'error');
-      return;
-    }
-    setCharging(true);
-    try {
-      const res = await fetch('/api/payments/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create-asaas-checkout',
-          planId: chargeModal.id,
-          clientName: chargeForm.name,
-          clientPhone: chargeForm.phone,
-          clientEmail: chargeForm.email,
-          clientCpf: chargeForm.taxId,
-          billingType: 'CREDIT_CARD',
-          billingDay: chargeForm.billingDay ? Number(chargeForm.billingDay) : 10,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || 'Erro ao gerar cobrança');
-      window.open(data.url, '_blank');
-      setChargeModal(null);
-      setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: '' });
-    } catch (err: any) {
-      toast(err.message || 'Erro ao gerar cobrança', 'error');
-    } finally {
-      setCharging(false);
-    }
+  // Assinatura por cartão exige que o próprio cliente digite os dados do cartão
+  // (o formulário já é o nosso próprio, sem checkout externo) — o botão abre
+  // direto o cadastro de assinatura numa nova aba.
+  const handleAddSubscriber = (plan: SubscriptionPlan) => {
+    window.open(`${window.location.origin}/plano/${plan.id}`, '_blank');
   };
 
   useEffect(() => {
@@ -232,28 +180,14 @@ export default function SubscriptionsPage() {
                     <span className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">{plan.activeUsers || 0} assinante{(plan.activeUsers || 0) !== 1 ? 's' : ''}</span>
                   </div>
 
-                  {/* Action buttons */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleCopyLink(plan)}
-                      title="Copiar link"
-                      className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl transition-all text-[9px] font-mono font-black uppercase tracking-widest ${copiedId === plan.id ? 'bg-brand-success/15 text-brand-success border border-brand-success/30' : 'text-brand-muted hover:text-brand-accent'}`}
-                      style={copiedId !== plan.id ? { background: 'var(--input-bg)', border: '1px solid var(--card-border)' } : {}}
-                    >
-                      <Link2 size={15} />
-                      {copiedId === plan.id ? 'Copiado!' : 'Copiar'}
-                    </button>
-
-                    <button
-                      onClick={() => { setChargeModal(plan); setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: '' }); }}
-                      title="Gerar cobrança"
-                      className="flex flex-col items-center gap-1.5 py-3 rounded-2xl text-brand-muted hover:text-brand-accent transition-all text-[9px] font-mono font-black uppercase tracking-widest"
-                      style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}
-                    >
-                      <Zap size={15} />
-                      Cobrar
-                    </button>
-                  </div>
+                  {/* Action button */}
+                  <button
+                    onClick={() => handleAddSubscriber(plan)}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl transition-all text-[9px] font-mono font-black uppercase tracking-widest text-brand-muted hover:text-brand-accent"
+                    style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}
+                  >
+                    <Plus size={15} /> Adicionar assinante
+                  </button>
                 </div>
               </div>
             ))}
@@ -352,7 +286,8 @@ export default function SubscriptionsPage() {
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
                                 action: 'cancel-subscription',
-                                asaasSubscriptionId: sub.asaasSubscriptionId || (sub as any).data?.asaasSubscriptionId || null,
+                                pagarmeSubscriptionId: sub.pagarmeSubscriptionId || null,
+                                asaasSubscriptionId: sub.asaasSubscriptionId || null,
                                 clientSubscriptionId: sub.id,
                               }),
                             });
@@ -375,85 +310,6 @@ export default function SubscriptionsPage() {
         )}
       </div>
 
-      {/* Charge modal */}
-      {chargeModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl">
-          <div className="w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-[0_40px_120px_rgba(0,0,0,0.8)]"
-            style={{ background: 'var(--header-bg)', border: '1px solid var(--card-border)' }}>
-
-            {/* Header */}
-            <div className="px-8 pt-8 pb-6 flex items-start justify-between border-b" style={{ borderColor: 'var(--card-border)' }}>
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/5 mb-2">
-                  <Zap size={10} className="text-brand-accent" />
-                  <span className="text-[9px] font-mono uppercase tracking-widest text-brand-accent font-black">Gerar Cobrança</span>
-                </div>
-                <h2 className="text-2xl font-display font-black text-brand-main uppercase tracking-tighter leading-none">
-                  {chargeModal.name}<span className="text-brand-accent">.</span>
-                </h2>
-                <p className="text-brand-muted text-sm font-mono mt-1">R$ {chargeModal.price}/mês · Recorrência mensal</p>
-              </div>
-              <button onClick={() => { setChargeModal(null); setChargeForm({ name: '', phone: '', email: '', taxId: '', billingDay: '' }); }}
-                className="w-10 h-10 rounded-full flex items-center justify-center text-brand-muted hover:text-brand-main hover:rotate-90 transition-all"
-                style={{ background: 'var(--input-bg)' }}>
-                <XIcon size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCharge} className="px-8 py-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Nome do cliente</label>
-                <input required type="text" placeholder="João Silva" value={chargeForm.name}
-                  onChange={e => setChargeForm(p => ({ ...p, name: e.target.value }))}
-                  className="w-full rounded-2xl px-4 py-3 text-brand-main font-medium outline-none text-sm transition-all"
-                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">WhatsApp / Tel</label>
-                <input required type="tel" placeholder="(11) 99999-9999" value={chargeForm.phone}
-                  onChange={e => setChargeForm(p => ({ ...p, phone: e.target.value }))}
-                  className="w-full rounded-2xl px-4 py-3 text-brand-main font-medium outline-none text-sm transition-all"
-                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">E-mail</label>
-                <input type="email" placeholder="joao@email.com" value={chargeForm.email}
-                  onChange={e => setChargeForm(p => ({ ...p, email: e.target.value }))}
-                  className="w-full rounded-2xl px-4 py-3 text-brand-main font-medium outline-none text-sm transition-all"
-                  style={{ background: 'var(--input-bg)', border: `1px solid ${chargeForm.email && !isValidEmail(chargeForm.email) ? '#ef4444' : 'var(--input-border)'}` }} />
-                {chargeForm.email && !isValidEmail(chargeForm.email) && <p className="text-[10px] text-red-400 font-mono">E-mail inválido</p>}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">CPF do cliente</label>
-                <input required type="text" placeholder="000.000.000-00" value={chargeForm.taxId}
-                  onChange={e => setChargeForm(p => ({ ...p, taxId: maskCPF(e.target.value) }))}
-                  className="w-full rounded-2xl px-4 py-3 text-brand-main font-medium outline-none text-sm transition-all"
-                  style={{ background: 'var(--input-bg)', border: `1px solid ${chargeForm.taxId && !isValidCPF(chargeForm.taxId) ? '#ef4444' : 'var(--input-border)'}` }} />
-                {chargeForm.taxId && !isValidCPF(chargeForm.taxId) && <p className="text-[10px] text-red-400 font-mono">CPF inválido</p>}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-mono text-brand-muted uppercase tracking-widest">Dia de vencimento</label>
-                <input
-                  type="text" inputMode="numeric" placeholder="Ex: 10" value={chargeForm.billingDay}
-                  onChange={e => {
-                    const raw = e.target.value.replace(/\D/g, '');
-                    const num = Number(raw);
-                    if (raw === '' || (num >= 1 && num <= 28)) setChargeForm(p => ({ ...p, billingDay: raw }));
-                  }}
-                  className="w-full rounded-2xl px-4 py-3 text-brand-main font-mono font-bold outline-none text-sm transition-all"
-                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)' }} />
-                <p className="text-[10px] font-mono text-brand-muted">Dia do mês (1–28) em que o cliente será cobrado.</p>
-              </div>
-              <button type="submit" disabled={charging}
-                className="w-full py-4 rounded-2xl bg-brand-accent text-white font-display font-black text-[12px] uppercase tracking-[0.2em] shadow-[0_0_25px_rgba(0,112,255,0.3)] hover:opacity-90 transition-all disabled:opacity-40 flex items-center justify-center gap-3 mt-2">
-                {charging
-                  ? <><Loader2 size={16} className="animate-spin" /> Gerando...</>
-                  : <><Zap size={15} /> Abrir Checkout <ArrowRight size={15} /></>}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Modal */}
       {modalOpen && (

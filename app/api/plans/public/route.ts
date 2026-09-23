@@ -23,5 +23,6 @@ export async function GET(request: NextRequest) {
     userId: plan.userId,
     barbershopName: configData.name || 'Barbearia',
     barbershopLogo: configData.logo_url || configData.logoUrl || null,
+    theme: configData.theme === 'light' ? 'light' : 'dark',
   });
 }
