@@ -50,7 +50,12 @@ function LoginPageContent() {
       } else {
         const session = await getSession();
         const role = (session?.user as any)?.role;
-        router.push(role === 'Super Admin' ? '/admin' : '/dashboard');
+        const plan = searchParams.get('plan');
+        if (role !== 'Super Admin' && plan) {
+          router.push(`/dashboard?plan=${plan}`);
+        } else {
+          router.push(role === 'Super Admin' ? '/admin' : '/dashboard');
+        }
         // Barbeiros e Proprietários vão para /dashboard — o layout filtra o conteúdo por role
         router.refresh();
       }

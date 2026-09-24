@@ -3,9 +3,11 @@
 import React, { useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { useAuth } from '@/components/AuthProvider';
-import { useRouter, usePathname } from 'next/navigation';
-import { Menu, X, LogOut, Bell, Sun, Moon, LayoutDashboard, CalendarDays, DollarSign, Scissors } from 'lucide-react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { Menu, X, LogOut, Bell, Sun, Moon, LayoutDashboard, CalendarDays, DollarSign, Scissors, Crown } from 'lucide-react';
 import { ThemeProvider, useTheme } from '@/components/ThemeProvider';
+import { BillingCheckoutModal } from '@/components/BillingCheckoutModal';
+import { isPlatformPlanId } from '@/lib/platformPlans';
 import Link from 'next/link';
 
 interface InnerProps {
@@ -13,9 +15,11 @@ interface InnerProps {
   user: { id: string; email?: string | null };
   userRole: string;
   signOut: () => Promise<void>;
+  onOpenBilling: () => void;
+  showBillingButton: boolean;
 }
 
-function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
+function DashboardInner({ children, user, userRole, signOut, onOpenBilling, showBillingButton }: InnerProps) {
   const { theme, toggle } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -59,6 +63,16 @@ function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
           <div className="flex-1 lg:flex-none" />
 
           <div className="flex items-center gap-3">
+            {showBillingButton && (
+              <button
+                onClick={onOpenBilling}
+                title="Assinatura do UseBarber"
+                className="w-10 h-10 flex items-center justify-center rounded-xl text-brand-accent hover:text-brand-main transition-all"
+                style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}
+              >
+                <Crown size={18} />
+              </button>
+            )}
             <button className="w-10 h-10 flex items-center justify-center rounded-xl text-brand-muted hover:text-brand-main transition-all" style={{ background: 'var(--input-bg)', border: '1px solid var(--card-border)' }}>
               <Bell size={18} />
             </button>
@@ -163,11 +177,30 @@ function DashboardInner({ children, user, userRole, signOut }: InnerProps) {
   );
 }
 
+interface BillingStatus {
+  state: 'trialing' | 'active' | 'blocked';
+  daysLeft: number | null;
+  canManage: boolean;
+}
+
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { user, userRole, loading, signOut } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
-  if (loading) {
+  React.useEffect(() => {
+    if (!user) return;
+    fetch('/api/billing/status')
+      .then(r => r.json())
+      .then((data: BillingStatus) => setBilling(data))
+      .catch(() => setBilling({ state: 'active', daysLeft: null, canManage: false }));
+  }, [user]);
+
+  const planFromUrl = searchParams.get('plan');
+
+  if (loading || (user && !billing)) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--brand-deep)' }}>
         <iconify-icon icon="solar:scissors-square-bold-duotone" class="text-6xl text-brand-accent animate-pulse" />
@@ -180,15 +213,48 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     return null;
   }
 
+  const showForcedModal = billing?.state === 'blocked';
+  const showOptionalModal = !showForcedModal && billing?.state === 'trialing' && (isPlatformPlanId(planFromUrl) || upgradeOpen);
+
+  const refreshBilling = () => {
+    fetch('/api/billing/status').then(r => r.json()).then(setBilling).catch(() => {});
+  };
+
   return (
     <ThemeProvider userId={user.id}>
-      <DashboardInner user={user} userRole={userRole} signOut={signOut}>
+      <DashboardInner
+        user={user}
+        userRole={userRole}
+        signOut={signOut}
+        showBillingButton={userRole !== 'Barbeiro' && billing?.state === 'trialing'}
+        onOpenBilling={() => setUpgradeOpen(true)}
+      >
         {children}
       </DashboardInner>
+      {showForcedModal && (
+        <BillingCheckoutModal
+          forced
+          readOnlyNotice={!billing?.canManage}
+          onSuccess={refreshBilling}
+        />
+      )}
+      {showOptionalModal && (
+        <BillingCheckoutModal
+          forced={false}
+          daysLeft={billing?.daysLeft}
+          initialPlan={isPlatformPlanId(planFromUrl) ? planFromUrl : undefined}
+          onClose={() => { setUpgradeOpen(false); if (planFromUrl) router.replace('/dashboard'); }}
+          onSuccess={() => { refreshBilling(); setUpgradeOpen(false); }}
+        />
+      )}
     </ThemeProvider>
   );
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return <DashboardShell>{children}</DashboardShell>;
+  return (
+    <React.Suspense>
+      <DashboardShell>{children}</DashboardShell>
+    </React.Suspense>
+  );
 }

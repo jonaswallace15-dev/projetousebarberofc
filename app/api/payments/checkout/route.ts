@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createPixOrder, createCardSubscription, cancelSubscription as cancelPagarmeSubscription, sanitizeGatewayErrorMessage } from '@/lib/pagarme';
+import { PLATFORM_PLANS, isPlatformPlanId } from '@/lib/platformPlans';
 
 export async function POST(request: NextRequest) {
   try {
@@ -202,6 +203,58 @@ export async function POST(request: NextRequest) {
         status: subscription.status,
         clientSubscriptionId,
       });
+    }
+
+    // ── Mensalidade do UseBarber (a barbearia paga a plataforma) ────────────
+    // Sem split — 100% vai pro recipient da própria conta Pagar.me do UseBarber,
+    // diferente das assinaturas acima (onde o cliente paga a barbearia).
+    if (action === 'create-platform-subscription') {
+      const session = await auth();
+      if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      if ((session.user as any).role !== 'Proprietário') {
+        return NextResponse.json({ error: 'Só o dono da barbearia pode gerenciar a assinatura.' }, { status: 403 });
+      }
+
+      const { plan, billingCycle, clientCpf, card } = body;
+      if (!isPlatformPlanId(plan)) return NextResponse.json({ error: 'Plano inválido' }, { status: 400 });
+      const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
+      const cpfDigits = (clientCpf || '').replace(/\D/g, '');
+      if (cpfDigits.length !== 11) return NextResponse.json({ error: 'CPF inválido' }, { status: 400 });
+      if (!card) return NextResponse.json({ error: 'Dados do cartão ausentes' }, { status: 400 });
+
+      const planDef = PLATFORM_PLANS[plan];
+      const priceCents = Math.round((cycle === 'yearly' ? planDef.priceYearly : planDef.priceMonthly) * 100);
+
+      const subscription = await createCardSubscription({
+        planPriceCents: priceCents,
+        planName: `UseBarber — Plano ${planDef.name} (${cycle === 'yearly' ? 'anual' : 'mensal'})`,
+        card,
+        intervalCount: cycle === 'yearly' ? 12 : 1,
+        customer: {
+          name: session.user.name || 'Barbearia',
+          email: session.user.email || `${cpfDigits}@semmail.com`,
+          cpf: cpfDigits,
+        },
+        metadata: { referenceId: `PLATFORM|${session.user.id}` },
+      });
+
+      const isActive = subscription.status === 'active';
+      await prisma.platformSubscription.upsert({
+        where: { userId: session.user.id },
+        update: {
+          plan, billingCycle: cycle,
+          status: isActive ? 'active' : 'past_due',
+          pagarmeSubscriptionId: subscription.subscriptionId,
+          lastError: null,
+        },
+        create: {
+          userId: session.user.id, plan, billingCycle: cycle,
+          status: isActive ? 'active' : 'past_due',
+          pagarmeSubscriptionId: subscription.subscriptionId,
+        },
+      });
+
+      return NextResponse.json({ status: subscription.status, plan, billingCycle: cycle });
     }
 
     // ── Cancelar Assinatura ────────────────────────────────────────────────

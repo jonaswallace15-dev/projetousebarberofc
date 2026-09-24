@@ -1145,7 +1145,7 @@ export default function LandingPage() {
                                         </div>
 
                                         <button
-                                            onClick={() => router.push("/login")}
+                                            onClick={() => router.push(`/login?cadastro=1&plan=${plan.name.toLowerCase()}`)}
                                             className={`w-full py-5 rounded-2xl md:rounded-3xl font-display font-black text-[13px] md:text-[14px] uppercase tracking-[0.2em] transition-all duration-500 ${plan.accent ? 'bg-brand-accent text-white shadow-[0_20px_60px_rgba(0,102,255,0.35)] hover:-translate-y-1 hover:brightness-110' : 'bg-white/5 text-white border border-white/10 hover:bg-white/10 hover:border-white/20'}`}
                                         >
                                             {plan.cta}

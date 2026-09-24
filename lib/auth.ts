@@ -3,6 +3,7 @@ import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
+import { TRIAL_DAYS } from './platformPlans';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -43,6 +44,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                   role: 'Dono / Master',
                   commission: 100,
                   avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=2563eb&color=fff`,
+                },
+              },
+              platformSubscription: {
+                create: {
+                  status: 'trialing',
+                  trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
                 },
               },
             },

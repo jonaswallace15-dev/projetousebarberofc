@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { TRIAL_DAYS } from '@/lib/platformPlans';
 
 export async function POST(request: NextRequest) {
   const { email, password, name, role, barbershopName, phone } = await request.json();
@@ -40,6 +41,16 @@ export async function POST(request: NextRequest) {
               create: {
                 slug: barbershopName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now(),
                 data: { name: barbershopName, phone: phone ?? '' },
+              },
+            },
+          }
+        : {}),
+      ...(userRole === 'Proprietário'
+        ? {
+            platformSubscription: {
+              create: {
+                status: 'trialing',
+                trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
               },
             },
           }

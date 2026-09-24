@@ -15,18 +15,19 @@ model User {
   role      String   @default("Proprietário")
   createdAt DateTime @default(now()) @map("created_at")
 
-  barbers             Barber[]
-  clients             Client[]
-  services            Service[]
-  appointments        Appointment[]
-  transactions        FinanceTransaction[]
-  plans               SubscriptionPlan[]
-  products            Product[]
-  config              Config?
-  wallets             Wallet[]
-  pushSubscriptions   PushSubscription[]
-  clientSubscriptions ClientSubscription[]
-  pagarmeRecipient    PagarmeRecipient?
+  barbers              Barber[]
+  clients              Client[]
+  services             Service[]
+  appointments         Appointment[]
+  transactions         FinanceTransaction[]
+  plans                SubscriptionPlan[]
+  products             Product[]
+  config               Config?
+  wallets              Wallet[]
+  pushSubscriptions    PushSubscription[]
+  clientSubscriptions  ClientSubscription[]
+  pagarmeRecipient     PagarmeRecipient?
+  platformSubscription PlatformSubscription?
 
   @@map("users")
 }
@@ -50,13 +51,13 @@ model Barber {
 }
 
 model InviteToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  barberId  String   @map("barber_id")
-  userId    String   @map("user_id")
-  expiresAt DateTime @map("expires_at")
+  id        String    @id @default(cuid())
+  token     String    @unique
+  barberId  String    @map("barber_id")
+  userId    String    @map("user_id")
+  expiresAt DateTime  @map("expires_at")
   usedAt    DateTime? @map("used_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("invite_tokens")
 }
@@ -98,12 +99,12 @@ model Service {
 }
 
 model Appointment {
-  id          String @id @default(cuid())
-  userId      String @map("user_id")
-  clientId    String @map("client_id")
-  clientName  String @map("client_name")
-  barberId    String @map("barber_id")
-  barberName  String @map("barber_name")
+  id          String  @id @default(cuid())
+  userId      String  @map("user_id")
+  clientId    String  @map("client_id")
+  clientName  String  @map("client_name")
+  barberId    String  @map("barber_id")
+  barberName  String  @map("barber_name")
   serviceId   String  @map("service_id")
   serviceName String  @map("service_name")
   productId   String? @map("product_id")
@@ -241,22 +242,44 @@ model ClientSubscription {
 // poder receber split e sacar. Ver lib/pagarme.ts (createRecipient) e
 // app/api/settings/pagarme-recipient/route.ts.
 model PagarmeRecipient {
-  id                 String    @id @default(cuid())
-  userId             String    @unique @map("user_id")
-  pagarmeRecipientId String?   @unique @map("pagarme_recipient_id")
-  status             String    @default("pending") // pending | active | refused | created | registration_pending
-  holderType         String    @map("holder_type") // individual | company
+  id                 String   @id @default(cuid())
+  userId             String   @unique @map("user_id")
+  pagarmeRecipientId String?  @unique @map("pagarme_recipient_id")
+  status             String   @default("pending") // pending | active | refused | created | registration_pending
+  holderType         String   @map("holder_type") // individual | company
   document           String
-  legalName          String    @map("legal_name")
-  registrationData   Json      @map("registration_data") // register_information enviado à Stone (email, telefone, endereço, etc.)
-  bankAccount        Json      @map("bank_account") // default_bank_account (banco, agência, conta)
-  lastError          String?   @map("last_error")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  legalName          String   @map("legal_name")
+  registrationData   Json     @map("registration_data") // register_information enviado à Stone (email, telefone, endereço, etc.)
+  bankAccount        Json     @map("bank_account") // default_bank_account (banco, agência, conta)
+  lastError          String?  @map("last_error")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("pagarme_recipients")
+}
+
+// Assinatura da própria barbearia com o UseBarber (mensalidade do sistema, paga
+// direto pra plataforma — sem split, sem relação com o PagarmeRecipient da
+// barbearia). 1 por User dono (Proprietário). Ver lib/platformPlans.ts e
+// lib/billing.ts.
+model PlatformSubscription {
+  id                    String    @id @default(cuid())
+  userId                String    @unique @map("user_id")
+  plan                  String? // 'start' | 'pro' | 'premium' — null enquanto ainda não escolheu/pagou
+  billingCycle          String?   @map("billing_cycle") // 'monthly' | 'yearly'
+  status                String    @default("trialing") // trialing | active | past_due | canceled
+  trialEndsAt           DateTime? @map("trial_ends_at")
+  pagarmeSubscriptionId String?   @unique @map("pagarme_subscription_id")
+  currentPeriodEnd      DateTime? @map("current_period_end")
+  lastError             String?   @map("last_error")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("platform_subscriptions")
 }
 
 model Withdrawal {

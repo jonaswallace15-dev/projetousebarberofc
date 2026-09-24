@@ -186,9 +186,28 @@ async function findSubscriptionByPagarmeId(pagarmeSubscriptionId: string) {
   });
 }
 
+// Mensalidade do UseBarber (a barbearia pagando a plataforma) — tabela e fluxo
+// separados da ClientSubscription (cliente pagando a barbearia). Ver lib/billing.ts.
+async function handlePlatformSubscriptionStatus(pagarmeSubscriptionId: string, status: string) {
+  const sub = await prisma.platformSubscription.findUnique({ where: { pagarmeSubscriptionId } });
+  if (!sub) return false;
+
+  const isActive = status === 'active';
+  if (isActive !== (sub.status === 'active')) {
+    await prisma.platformSubscription.update({
+      where: { id: sub.id },
+      data: { status: isActive ? 'active' : 'past_due' },
+    });
+  }
+  return true;
+}
+
 async function handleSubscriptionStatus(subscription: any) {
   const sub = await findSubscriptionByPagarmeId(subscription?.id);
-  if (!sub) return;
+  if (!sub) {
+    await handlePlatformSubscriptionStatus(subscription?.id, subscription?.status);
+    return;
+  }
 
   const isActive = subscription.status === 'active';
   if (isActive && sub.status !== 'active') {
@@ -204,7 +223,14 @@ async function handleSubscriptionStatus(subscription: any) {
 
 async function handleSubscriptionCanceled(subscription: any) {
   const sub = await findSubscriptionByPagarmeId(subscription?.id);
-  if (!sub || sub.status !== 'active') return;
+  if (!sub) {
+    const platformSub = await prisma.platformSubscription.findUnique({ where: { pagarmeSubscriptionId: subscription?.id } });
+    if (platformSub && platformSub.status !== 'canceled') {
+      await prisma.platformSubscription.update({ where: { id: platformSub.id }, data: { status: 'canceled' } });
+    }
+    return;
+  }
+  if (sub.status !== 'active') return;
 
   await prisma.$transaction([
     prisma.clientSubscription.update({ where: { id: sub.id }, data: { status: 'cancelled' } }),
@@ -219,7 +245,11 @@ async function handleChargePaid(charge: any) {
   if (!pagarmeSubscriptionId) return;
 
   const sub = await findSubscriptionByPagarmeId(pagarmeSubscriptionId);
-  if (!sub) return;
+  if (!sub) {
+    // Renovação da mensalidade do UseBarber — sem carteira/split, só mantém o status em dia.
+    await handlePlatformSubscriptionStatus(pagarmeSubscriptionId, 'active');
+    return;
+  }
 
   const alreadyCredited = await prisma.walletTransaction.findFirst({ where: { relatedId: charge.id, category: 'assinatura' } });
   if (alreadyCredited) return;
